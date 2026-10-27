@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Family Point Bank</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a sticky tab bar over one working pane; kids are a wrap grid of "jar" cards, actions open a bottom sheet. */
+:root{
+  --bg:#F2F6FA; --surface:#FFFFFF; --sunk:#E8EEF4; --ink:#14304A; --muted:#5A7085; --line:#D6E0EA;
+  --accent:#F2A516; --accent-ink:#3A2600; --earn:#1C8A57; --lose:#C4442D;
+  --k1:#3D7DD8; --k2:#D9508A; --k3:#2FA37A; --k4:#8C5BD6; --k5:#E07A2E; --k6:#1F9BB0;
+  --display:"Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+  --body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0E1B27; --surface:#162736; --sunk:#112130; --ink:#E5EEF6; --muted:#94A9BB; --line:#26394B;
+  --accent:#F5B73F; --accent-ink:#2B1B00; --earn:#4CC48B; --lose:#F07B64;
+  --k1:#6FA2F0; --k2:#EE7BAA; --k3:#4FC79A; --k4:#AE87EE; --k5:#F29A55; --k6:#47BFD3; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0E1B27; --surface:#162736; --sunk:#112130; --ink:#E5EEF6; --muted:#94A9BB; --line:#26394B;
+  --accent:#F5B73F; --accent-ink:#2B1B00; --earn:#4CC48B; --lose:#F07B64;
+  --k1:#6FA2F0; --k2:#EE7BAA; --k3:#4FC79A; --k4:#AE87EE; --k5:#F29A55; --k6:#47BFD3; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:1040px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-block:12px 0}
+.brand{font-family:var(--display);font-weight:800;font-size:1.6rem;line-height:1;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+.coin{width:30px;height:30px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-size:.95rem;box-shadow:inset 0 -3px 0 rgba(0,0,0,.15)}
+.sync{margin-left:auto;font-size:.8rem;color:var(--muted);display:flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.dot.on{background:var(--earn)}
+nav{display:flex;gap:4px;overflow-x:auto;padding-block:8px 0;scrollbar-width:none}
+nav button{font:600 .92rem var(--body);color:var(--muted);background:none;border:0;padding:8px 12px 10px;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+nav button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+main{padding-block:20px 60px;display:grid;gap:18px}
+.banner{background:var(--sunk);border:1px dashed var(--line);border-radius:var(--r);padding:10px 14px;font-size:.88rem;color:var(--muted)}
+h2{font-family:var(--display);font-weight:700;font-size:1.35rem;margin:0;line-height:1.1;text-wrap:balance}
+.sub{color:var(--muted);font-size:.9rem;margin:2px 0 0}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.spread{justify-content:space-between}
+
+button,.btn{font:600 .9rem var(--body);border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:8px 12px;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.45;cursor:not-allowed}
+.b-earn{background:var(--earn);border-color:var(--earn);color:#fff}
+.b-lose{color:var(--lose);border-color:var(--lose);background:transparent}
+.b-cash{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.b-ghost{border-color:transparent;background:transparent;color:var(--muted);padding:6px 8px}
+.b-ghost[data-armed]{color:var(--lose)}
+input,select{font:500 .92rem var(--body);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}
+label.f{display:grid;gap:4px;font-size:.78rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+
+.kids{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.kid{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px;display:grid;gap:12px;min-width:0}
+.kid-h{display:flex;align-items:center;gap:12px}
+.av{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:1.3rem;color:#fff;flex:none}
+.kid-name{font-family:var(--display);font-weight:700;font-size:1.25rem;line-height:1.05}
+.kid-age{font-size:.82rem;color:var(--muted)}
+.bal{display:flex;align-items:baseline;gap:8px}
+.bal b{font-family:var(--display);font-weight:800;font-size:2.6rem;line-height:1;font-variant-numeric:tabular-nums}
+.bal span{color:var(--muted);font-size:.88rem}
+.goal{display:grid;gap:6px;font-size:.84rem}
+.goal select{font-size:.84rem;padding:5px 8px}
+.bar{height:10px;border-radius:99px;background:var(--sunk);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px;background:var(--accent);transition:width .4s}
+.acts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.acts button{padding:9px 4px}
+.kid.add{border-style:dashed;background:transparent;align-content:start}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:12px;min-width:0}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.list{display:grid}
+.item{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line);min-width:0}
+.item:first-child{border-top:0}
+.item .t{flex:1;min-width:0;overflow-wrap:anywhere}
+.item .m{font-size:.8rem;color:var(--muted)}
+.pts{font-family:var(--display);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pos{color:var(--earn)} .neg{color:var(--lose)}
+.tag{font-size:.72rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:99px;background:var(--sunk);color:var(--muted);white-space:nowrap}
+.formrow{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;align-items:end}
+.formrow.r5{grid-template-columns:2fr .8fr 1fr .7fr .7fr auto}
+.empty{color:var(--muted);font-size:.9rem;padding:8px 0}
+
+.scrim{position:fixed;inset:0;background:rgba(5,15,25,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);width:min(560px,100%);max-height:86vh;overflow:auto;border-radius:20px 20px 0 0;padding:18px max(16px,env(safe-area-inset-left,0px)) calc(20px + env(safe-area-inset-bottom,0px));display:grid;gap:14px}
+@media (min-width:700px){.scrim{align-items:center}.sheet{border-radius:20px}}
+.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.chip{display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;padding:10px 12px;background:var(--surface)}
+.chip .pts{font-size:1.05rem}
+.grp{font-size:.75rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;z-index:30;max-width:calc(100% - 32px)}
+@media (max-width:640px){
+  .cols{grid-template-columns:1fr}
+  .formrow,.formrow.r5{grid-template-columns:1fr 1fr}
+  .formrow > :first-child{grid-column:1/-1}
+}
+/* kid view */
+[hidden]{display:none!important}
+.kv{display:grid;gap:18px;justify-items:center;text-align:center}
+.kv h2{font-size:clamp(1.6rem,6vw,2.2rem)}
+.pick{display:flex;flex-wrap:wrap;gap:16px;justify-content:center}
+.pick button{display:grid;gap:10px;justify-items:center;padding:18px 20px;border-radius:22px;min-width:140px;font:700 1.35rem var(--display)}
+.pick .av{width:88px;height:88px;font-size:2.6rem}
+.hero{background:var(--surface);border:1px solid var(--line);border-radius:26px;padding:24px 20px;width:min(640px,100%);display:grid;gap:12px;justify-items:center}
+.hero .av{width:72px;height:72px;font-size:2.2rem}
+.big{font-family:var(--display);font-weight:800;font-size:clamp(4.5rem,20vw,7.5rem);line-height:.85;font-variant-numeric:tabular-nums}
+.big-l{font-family:var(--display);font-weight:700;font-size:1.3rem;color:var(--muted)}
+.stars{display:flex;flex-wrap:wrap;gap:2px 4px;justify-content:center;color:var(--accent);font-size:1.7rem;line-height:1.1;max-width:440px}
+.kgoal{width:min(640px,100%);display:grid;gap:8px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px 18px}
+.kgoal .bar{height:20px}
+.kgoal b{font-family:var(--display);font-size:1.2rem}
+.can{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;width:min(640px,100%);text-align:left}
+.can div{background:var(--surface);border:2px solid var(--line);border-radius:16px;padding:12px 14px;display:grid;gap:2px;min-width:0}
+.can div.yes{border-color:var(--earn)}
+.can small{color:var(--muted);font-weight:600}
+.kv .grp,.kv .panel{width:min(640px,100%);text-align:left}
+.gate{width:min(640px,100%);text-align:left}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header>
+  <div class="wrap">
+    <div class="top">
+      <div class="brand"><span class="coin" aria-hidden="true">★</span>Family Point Bank</div>
+      <div class="sync" id="sync"><span class="dot"></span><span>Connecting…</span></div>
+      <button id="kvBtn" data-act="kidview">Kid view</button>
+    </div>
+    <nav id="tabs" role="tablist">
+      <button data-tab="kids" aria-selected="true">Kids</button>
+      <button data-tab="activities" aria-selected="false">Ways to earn &amp; lose</button>
+      <button data-tab="rewards" aria-selected="false">Rewards</button>
+      <button data-tab="history" aria-selected="false">History</button>
+      <button data-tab="settings" aria-selected="false">Settings</button>
+    </nav>
+  </div>
+</header>
+<main class="wrap" id="main"></main>
+<div id="sheet-root"></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const KID_COLORS=['k1','k2','k3','k4','k5','k6'];
+const REWARD_CATS={screen:'Screen time',privilege:'Privilege',outing:'Outing',time:'Time together'};
+const S={kidMode:false,kidSel:'',gate:null,tab:'kids',mode:'loading',kids:[],activities:[],rewards:[],log:[],settings:{pointsPerDollar:10},uid:null,names:{},histKid:''};
+let db=null,user=null,sheet=null;
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rid=()=>Math.random().toString(36).slice(2,10);
+const rate=()=>Math.max(1,Number(S.settings.pointsPerDollar)||10);
+const money=p=>'$'+(p/rate()).toFixed(2);
+const balance=kidId=>S.log.reduce((a,e)=>e.kidId===kidId?a+(Number(e.points)||0):a,0);
+const kidById=id=>S.kids.find(k=>k.id===id);
+const sortKids=()=>[...S.kids].sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+const fitsAge=(a,age)=>age>=(a.minAge??2)&&age<=(a.maxAge??16);
+
+function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>t.hidden=true,2600)}
+
+/* ---------- storage: shared db when available, in-memory example data otherwise ---------- */
+async function addDoc(c,data){
+  if(db){try{await db.collection(c).add(data)}catch(e){fail(e)};return}
+  S[c].push({id:rid(),...data});persist();render();
+}
+async function delDoc(c,id){
+  if(db){try{await db.collection(c).doc(id).delete()}catch(e){fail(e)};return}
+  S[c]=S[c].filter(x=>x.id!==id);persist();render();
+}
+async function updDoc(c,id,patch){
+  if(db){try{await db.collection(c).doc(id).update(patch)}catch(e){fail(e)};return}
+  Object.assign(S[c].find(x=>x.id===id)||{},patch);persist();render();
+}
+async function saveSettings(patch){
+  S.settings={...S.settings,...patch};
+  if(db){try{await db.doc('settings/main').set(S.settings)}catch(e){fail(e)};return}
+  persist();render();
+}
+function fail(e){
+  const code=e&&e.code;
+  toast(code==='invalid_argument'?'You have view-only access, so changes were not saved.':code==='quota_exceeded'?'The point bank is full. Remove old history to make room.':'That did not save. Check your connection and try again.');
+}
+
+/* Outside Claude there is no shared store: this copy saves on the device itself, starting from the starter lists. */
+const STARTER={"settings":{"pointsPerDollar":10},"kids":[],"log":[],"activities":[{"id":"e01","label":"Put toys away","points":5,"type":"earn","minAge":2,"maxAge":6},{"id":"e02","label":"Brush teeth without a reminder","points":3,"type":"earn","minAge":2,"maxAge":8},{"id":"e03","label":"Help set the table","points":5,"type":"earn","minAge":4,"maxAge":10},{"id":"e04","label":"Make bed","points":5,"type":"earn","minAge":4,"maxAge":16},{"id":"e05","label":"Feed the pet","points":5,"type":"earn","minAge":5,"maxAge":16},{"id":"e06","label":"Read for 20 minutes","points":10,"type":"earn","minAge":5,"maxAge":16},{"id":"e07","label":"Finish homework","points":10,"type":"earn","minAge":6,"maxAge":16},{"id":"e08","label":"Empty the dishwasher","points":10,"type":"earn","minAge":8,"maxAge":16},{"id":"e09","label":"Take out trash and recycling","points":10,"type":"earn","minAge":9,"maxAge":16},{"id":"e10","label":"Do own laundry","points":15,"type":"earn","minAge":11,"maxAge":16},{"id":"e11","label":"Big yard job","points":25,"type":"earn","minAge":13,"maxAge":16},{"id":"e12","label":"Kind act or helping a sibling","points":5,"type":"earn","minAge":2,"maxAge":16},{"id":"e13","label":"Great report from teacher","points":15,"type":"earn","minAge":5,"maxAge":16},{"id":"l01","label":"Not listening after two reminders","points":5,"type":"lose","minAge":2,"maxAge":16},{"id":"l02","label":"Hitting or name-calling","points":10,"type":"lose","minAge":2,"maxAge":16},{"id":"l03","label":"Talking back","points":5,"type":"lose","minAge":5,"maxAge":16},{"id":"l04","label":"Screen time past the limit","points":10,"type":"lose","minAge":6,"maxAge":16},{"id":"l05","label":"Breaking a house rule","points":15,"type":"lose","minAge":8,"maxAge":16}],"rewards":[{"id":"r01","label":"Pick the family movie at home","cost":15,"category":"privilege"},{"id":"r02","label":"30 min extra screen time","cost":20,"category":"screen"},{"id":"r03","label":"Stay up 30 min later","cost":25,"category":"privilege"},{"id":"r04","label":"Trip to the park","cost":30,"category":"outing"},{"id":"r05","label":"Ice cream outing","cost":40,"category":"outing"},{"id":"r06","label":"Friend sleepover","cost":100,"category":"privilege"},{"id":"r07","label":"Movie theater trip","cost":120,"category":"outing"},{"id":"r08","label":"Day with Mom","cost":150,"category":"time"},{"id":"r09","label":"Day with Dad","cost":150,"category":"time"}]};
+function persist(){
+  if(S.mode!=='local')return;
+  try{localStorage.setItem('fpb-data',JSON.stringify({kids:S.kids,activities:S.activities,rewards:S.rewards,log:S.log,settings:S.settings}))}catch{toast('This browser could not save. Check that site data is allowed.')}
+}
+function loadLocal(){
+  S.mode='local';
+  let saved=null;try{saved=JSON.parse(localStorage.getItem('fpb-data')||'null')}catch{}
+  const src=saved||STARTER;
+  S.kids=src.kids||[];S.log=src.log||[];S.settings={...S.settings,...(src.settings||{})};
+  S.activities=src.activities.map(a=>({...a}));S.rewards=src.rewards.map(r=>({...r}));
+}
+function loadExamples(){
+  S.mode='example';
+  const now=Date.now();
+  S.kids=[{id:'x1',name:'Maya (example)',age:7,color:'k2',createdAt:1,goalId:'r4'},{id:'x2',name:'Leo (example)',age:12,color:'k1',createdAt:2,goalId:'r6'}];
+  S.activities=[
+    {id:'a1',label:'Make bed',points:5,type:'earn',minAge:4,maxAge:16},
+    {id:'a2',label:'Put toys away',points:5,type:'earn',minAge:2,maxAge:6},
+    {id:'a3',label:'Finish homework',points:10,type:'earn',minAge:6,maxAge:16},
+    {id:'a4',label:'Empty the dishwasher',points:10,type:'earn',minAge:8,maxAge:16},
+    {id:'a5',label:'Kind act or helping a sibling',points:5,type:'earn',minAge:2,maxAge:16},
+    {id:'a6',label:'Not listening after two reminders',points:5,type:'lose',minAge:2,maxAge:16},
+    {id:'a7',label:'Screen time past the limit',points:10,type:'lose',minAge:6,maxAge:16}];
+  S.rewards=[
+    {id:'r1',label:'30 min extra screen time',cost:20,category:'screen'},
+    {id:'r2',label:'Trip to the park',cost:30,category:'outing'},
+    {id:'r3',label:'Stay up 30 min later',cost:25,category:'privilege'},
+    {id:'r4',label:'Movie theater trip',cost:120,category:'outing'},
+    {id:'r5',label:'Day with Mom',cost:150,category:'time'},
+    {id:'r6',label:'Day with Dad',cost:150,category:'time'}];
+  const L=(k,l,p,kind,h)=>({id:rid(),kidId:k,label:l,points:p,kind,at:now-h*3600e3});
+  S.log=[L('x1','Make bed',5,'earn',2),L('x1','Kind act or helping a sibling',5,'earn',5),L('x1','Finish homework',10,'earn',26),L('x1','Bonus: great week',40,'earn',50),
+         L('x2','Empty the dishwasher',10,'earn',3),L('x2','Finish homework',10,'earn',27),L('x2','Screen time past the limit',-10,'lose',30),L('x2','Weekend yard help',60,'earn',72),L('x2','30 min extra screen time',-20,'redeem',80)];
+}
+
+async function start(){
+  if(!window.claude||!window.claude.use){loadLocal();render();return}
+  render();
+  try{db=await window.claude.use('db')}catch{db=null}
+  if(!db){loadExamples();render();return}
+  try{user=await window.claude.use('user')}catch{user=null}
+  try{S.uid=user?await user.id():null}catch{S.uid=null}
+  S.mode='live';render();
+  for(const c of ['kids','activities','rewards','log']){
+    db.collection(c).onSnapshot(snap=>{
+      S[c]=snap.docs.map(d=>({id:d.id,...d.data()}));
+      if(c==='log')resolveNames();
+      render();
+    },()=>{S.mode='offline';render()});
+  }
+  db.doc('settings/main').onSnapshot(s=>{if(s.exists){S.settings={...S.settings,...s.data()};render()}},()=>{});
+}
+async function resolveNames(){
+  if(!user||!user.profiles)return;
+  const ids=[...new Set(S.log.map(e=>e.by).filter(Boolean))];
+  if(!ids.length)return;
+  try{const ps=await user.profiles(ids);for(const id of ids)S.names[id]=(ps[id]&&ps[id].name)||'';render()}catch{}
+}
+
+/* ---------- render ---------- */
+function render(){
+  const sync=$('#sync');
+  const m={loading:['','Connecting…'],live:['on','Synced for everyone with access'],example:['','Preview with example data'],local:['on','Saved on this device'],offline:['','Sync paused, reload to reconnect']}[S.mode];
+  sync.innerHTML=`<span class="dot ${m[0]}"></span><span>${m[1]}</span>`;
+  document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===S.tab));
+  $('#tabs').hidden=S.kidMode;$('#kvBtn').textContent=S.kidMode?'Grown-ups':'Kid view';
+  const main=$('#main');
+  const keepFocus=document.activeElement&&main.contains(document.activeElement)&&document.activeElement.id;
+  const banner=S.mode==='example'?`<div class="banner">This preview shows example kids and history so you can try it. Nothing here is saved. Open the shared link in Claude to use the real, synced point bank.</div>`:'';
+  const typed={};main.querySelectorAll('form input[id]').forEach(i=>typed[i.id]=i.value);
+  main.innerHTML=S.kidMode?banner+vKidView():banner+({kids:vKids,activities:vActivities,rewards:vRewards,history:vHistory,settings:vSettings}[S.tab])();
+  if(!render.skip)for(const id in typed){const i=document.getElementById(id);if(i)i.value=typed[id]}
+  render.skip=false;
+  if(keepFocus&&document.getElementById(keepFocus))document.getElementById(keepFocus).focus();
+  renderSheet();
+}
+
+function vKids(){
+  if(S.mode==='loading')return `<p class="empty">Opening your point bank…</p>`;
+  const cards=sortKids().map(k=>{
+    const b=balance(k.id),goal=S.rewards.find(r=>r.id===k.goalId);
+    const pct=goal?Math.max(0,Math.min(100,Math.round(b/goal.cost*100))):0;
+    const opts=`<option value="">Pick a reward to save for</option>`+S.rewards.map(r=>`<option value="${r.id}" ${r.id===k.goalId?'selected':''}>${esc(r.label)} (${r.cost})</option>`).join('');
+    return `<article class="kid">
+      <div class="kid-h"><div class="av" style="background:var(--${esc(k.color||'k1')})">${esc((k.name||'?').trim()[0]||'?').toUpperCase()}</div>
+        <div style="min-width:0;flex:1"><div class="kid-name">${esc(k.name)}</div><div class="kid-age">Age ${esc(k.age)}</div></div>
+        <button class="b-ghost" data-act="del" data-c="kids" data-id="${k.id}" aria-label="Remove ${esc(k.name)}">Remove</button></div>
+      <div class="bal"><b>${b}</b><span>points · worth ${money(Math.max(0,b))}</span></div>
+      <div class="goal">
+        <select data-act="goal" data-id="${k.id}" aria-label="Saving goal for ${esc(k.name)}">${opts}</select>
+        ${goal?`<div class="bar" aria-hidden="true"><i style="width:${pct}%"></i></div><div class="kid-age">${b>=goal.cost?'Ready to cash in!':`${goal.cost-b} more points to go`}</div>`:''}
+      </div>
+      <div class="acts">
+        <button class="b-earn" data-act="sheet" data-mode="earn" data-id="${k.id}">+ Points</button>
+        <button class="b-lose" data-act="sheet" data-mode="lose" data-id="${k.id}">− Points</button>
+        <button class="b-cash" data-act="sheet" data-mode="redeem" data-id="${k.id}">Cash in</button>
+      </div></article>`}).join('');
+  const colorOpts=KID_COLORS.map((c,i)=>`<option value="${c}">${['Blue','Pink','Green','Purple','Orange','Teal'][i]}</option>`).join('');
+  const ageOpts=Array.from({length:15},(_,i)=>i+2).map(a=>`<option ${a===6?'selected':''}>${a}</option>`).join('');
+  return `<div><h2>Kids</h2><p class="sub">Tap + or − to log points as things happen. Cash in spends points on a reward or money.</p></div>
+  <div class="kids">${cards}
+    <form class="kid add" id="addKid">
+      <div class="kid-name">Add a kid</div>
+      <label class="f">Name<input id="kName" required maxlength="30" placeholder="First name"></label>
+      <div class="row" style="flex-wrap:nowrap">
+        <label class="f" style="flex:1">Age<select id="kAge">${ageOpts}</select></label>
+        <label class="f" style="flex:1">Color<select id="kColor">${colorOpts}</select></label></div>
+      <button class="b-cash" type="submit">Add kid</button>
+    </form></div>`;
+}
+
+function vActivities(){
+  const block=type=>{
+    const items=S.activities.filter(a=>a.type===type).sort((a,b)=>a.points-b.points||String(a.label).localeCompare(b.label));
+    return `<section class="panel"><div><h2>${type==='earn'?'Ways to earn':'Ways to lose'}</h2><p class="sub">${type==='earn'?'Chores, school and good behavior.':'Points come off for these.'}</p></div>
+      <div class="list">${items.map(a=>`<div class="item"><div class="t">${esc(a.label)}<div class="m">Ages ${a.minAge??2}–${a.maxAge??16}</div></div>
+        <span class="pts ${type==='earn'?'pos':'neg'}">${type==='earn'?'+':'−'}${a.points}</span>
+        <button class="b-ghost" data-act="del" data-c="activities" data-id="${a.id}">Remove</button></div>`).join('')||'<p class="empty">Nothing yet. Add one below.</p>'}</div></section>`};
+  return `<div class="cols">${block('earn')}${block('lose')}</div>
+  <form class="panel" id="addAct"><h2>Add a way to earn or lose</h2>
+    <div class="formrow r5">
+      <label class="f">What<input id="aLabel" required maxlength="60" placeholder="e.g. Water the plants"></label>
+      <label class="f">Points<input id="aPts" type="number" min="1" max="1000" value="5" required></label>
+      <label class="f">Type<select id="aType"><option value="earn">Earn</option><option value="lose">Lose</option></select></label>
+      <label class="f">From age<input id="aMin" type="number" min="2" max="16" value="2"></label>
+      <label class="f">To age<input id="aMax" type="number" min="2" max="16" value="16"></label>
+      <button class="b-cash" type="submit">Add</button></div>
+    <p class="sub">Age ranges decide which choices show first for each kid.</p></form>`;
+}
+
+function vRewards(){
+  const items=[...S.rewards].sort((a,b)=>a.cost-b.cost);
+  return `<section class="panel"><div><h2>Rewards</h2><p class="sub">Kids spend points on these. Money is always available at ${rate()} points per $1.</p></div>
+    <div class="list">${items.map(r=>`<div class="item"><div class="t">${esc(r.label)}</div><span class="tag">${esc(REWARD_CATS[r.category]||'Other')}</span>
+      <span class="pts">${r.cost}</span><button class="b-ghost" data-act="del" data-c="rewards" data-id="${r.id}">Remove</button></div>`).join('')||'<p class="empty">No rewards yet. Add the first one below.</p>'}</div></section>
+  <form class="panel" id="addRew"><h2>Add a reward</h2>
+    <div class="formrow">
+      <label class="f">Reward<input id="rLabel" required maxlength="60" placeholder="e.g. Pizza night pick"></label>
+      <label class="f">Cost (points)<input id="rCost" type="number" min="1" max="10000" value="30" required></label>
+      <label class="f">Kind<select id="rCat">${Object.entries(REWARD_CATS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></label>
+      <button class="b-cash" type="submit">Add</button></div></form>`;
+}
+
+function vHistory(){
+  const rows=S.log.filter(e=>!S.histKid||e.kidId===S.histKid).sort((a,b)=>(b.at||0)-(a.at||0)).slice(0,200);
+  const fmt=t=>new Date(t).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  return `<section class="panel"><div class="row spread"><div><h2>History</h2><p class="sub">Every change, newest first. Remove an entry to undo it.</p></div>
+    <select id="histKid" data-act="histKid" aria-label="Show history for"><option value="">All kids</option>${sortKids().map(k=>`<option value="${k.id}" ${k.id===S.histKid?'selected':''}>${esc(k.name)}</option>`).join('')}</select></div>
+    <div class="list">${rows.map(e=>{const k=kidById(e.kidId);const who=e.by&&S.names[e.by]?` · by ${esc(S.names[e.by])}`:'';
+      return `<div class="item"><div class="t">${esc(e.label)}<div class="m">${esc(k?k.name:'Removed kid')} · ${fmt(e.at)}${who}${e.kind==='redeem'?' · cashed in':''}</div></div>
+      <span class="pts ${e.points>=0?'pos':'neg'}">${e.points>=0?'+':'−'}${Math.abs(e.points)}</span>
+      <button class="b-ghost" data-act="del" data-c="log" data-id="${e.id}">Undo</button></div>`}).join('')||'<p class="empty">No points logged yet. Go to Kids and tap + Points.</p>'}</div></section>`;
+}
+
+function vSettings(){
+  return `<section class="panel"><h2>Points and money</h2>
+    <div class="row"><label class="f">Points for $1<input id="ppd" type="number" min="1" max="1000" value="${rate()}"></label>
+    <button data-act="saveRate">Save</button></div>
+    <p class="sub">With ${rate()} points per $1, a kid with 50 points can cash out ${money(50)}.</p></section>
+  ${S.mode==='local'?`<section class="panel"><h2>This copy saves on this device</h2>
+    <p class="sub" style="max-width:62ch">Points you log here stay in this browser and don't sync to other phones. To share live with the other parent, use the version in Claude.</p></section>`:`<section class="panel"><h2>Sharing with the other parent</h2>
+    <p class="sub" style="max-width:62ch">Everyone you share this page with sees the same kids, points and history, live. Use Share at the top of the page and give the other parent Contributor or Editor access so they can add and take away points too. Kids don't need their own access yet.</p></section>`}`;
+}
+
+/* ---------- kid view: read-only, big and friendly; leaving it needs a grown-up answer ---------- */
+function vKidView(){
+  if(S.mode==='loading')return `<p class="empty">Opening your point bank…</p>`;
+  const gate=S.gate?`<form class="panel gate" id="gate"><h2>Grown-ups only</h2>
+    <div class="row"><label class="f">What is ${S.gate.a} × ${S.gate.b}?<input id="gateAns" type="number" inputmode="numeric" required></label>
+    <button class="b-cash" type="submit" style="align-self:end">Unlock</button><button type="button" class="b-ghost" data-act="gatecancel" style="align-self:end">Cancel</button></div></form>`:'';
+  const kids=sortKids();
+  if(!kids.length)return gate+`<div class="kv"><h2>No kids here yet</h2><p class="sub">A grown-up can add kids from the Kids tab.</p></div>`;
+  let k=kidById(S.kidSel);if(!k&&kids.length===1)k=kids[0];
+  const av=(k,cls='')=>`<span class="av ${cls}" style="background:var(--${esc(k.color||'k1')})">${esc((k.name||'?').trim()[0]||'?').toUpperCase()}</span>`;
+  if(!k)return gate+`<div class="kv"><h2>Who's checking their points?</h2>
+    <div class="pick">${kids.map(c=>`<button data-act="kvpick" data-id="${c.id}">${av(c)}<span>${esc(c.name)}</span></button>`).join('')}</div></div>`;
+  const b=balance(k.id),age=Number(k.age)||8,first=esc(String(k.name).split(' ')[0]);
+  const young=age<=6;
+  const starCount=Math.max(0,Math.min(b,40));
+  const worth=young?`<div class="stars" aria-label="${b} stars">${'★'.repeat(starCount)}</div>${b>40?`<div class="big-l">and ${b-40} more!</div>`:''}`
+    :`<div class="big-l">That's worth ${money(Math.max(0,b))}</div>`;
+  const goal=S.rewards.find(r=>r.id===k.goalId);
+  const goalHtml=goal?`<div class="kgoal"><div class="row spread"><b>Saving for: ${esc(goal.label)}</b><span class="pts">${Math.max(0,Math.min(b,goal.cost))} / ${goal.cost}</span></div>
+    <div class="bar"><i style="width:${Math.max(0,Math.min(100,Math.round(b/goal.cost*100)))}%"></i></div>
+    <div class="sub" style="margin:0">${b>=goal.cost?'You have enough! Ask a grown-up to cash in.':`${goal.cost-b} more points to go. You can do it!`}</div></div>`:'';
+  const rs=[...S.rewards].sort((x,y)=>x.cost-y.cost);
+  const can=rs.filter(r=>r.cost<=b).reverse(),next=rs.filter(r=>r.cost>b).slice(0,3);
+  const card=(r,yes)=>`<div class="${yes?'yes':''}"><span>${esc(r.label)}</span><small>${yes?`${r.cost} points`:`${r.cost-b} more to go`}</small></div>`;
+  const recent=S.log.filter(e=>e.kidId===k.id).sort((x,y)=>(y.at||0)-(x.at||0)).slice(0,5);
+  return gate+`<div class="kv">
+    <div class="hero">${av(k)}<h2>Hi, ${first}!</h2><div class="big">${b}</div><div class="big-l">${young?'stars':'points'}</div>${worth}</div>
+    ${goalHtml}
+    ${can.length?`<div class="grp">You can get now</div><div class="can">${can.map(r=>card(r,true)).join('')}</div>`:''}
+    ${next.length?`<div class="grp">Keep saving for</div><div class="can">${next.map(r=>card(r,false)).join('')}</div>`:''}
+    <section class="panel"><h2 style="font-size:1.2rem">Lately</h2><div class="list">${recent.map(e=>`<div class="item"><div class="t">${esc(e.label)}${e.kind==='redeem'?' (cashed in)':''}</div><span class="pts ${e.points>=0?'pos':'neg'}">${e.points>=0?'+':'−'}${Math.abs(e.points)}</span></div>`).join('')||'<p class="empty">Nothing yet. Do a chore to earn your first points!</p>'}</div></section>
+    ${kids.length>1?`<button data-act="kvswitch">Switch kid</button>`:''}
+  </div>`;
+}
+function saveKidPrefs(){try{localStorage.setItem('fpb-kid',S.kidMode?'1':'');localStorage.setItem('fpb-kidsel',S.kidSel||'')}catch{}}
+
+/* ---------- action sheet ---------- */
+function renderSheet(){
+  const root=$('#sheet-root');
+  if(!sheet){root.innerHTML='';return}
+  const k=kidById(sheet.kidId);if(!k){sheet=null;root.innerHTML='';return}
+  const b=balance(k.id),age=Number(k.age)||8;
+  let body='';
+  if(sheet.mode==='earn'||sheet.mode==='lose'){
+    const list=S.activities.filter(a=>a.type===sheet.mode);
+    const fit=list.filter(a=>fitsAge(a,age)),other=list.filter(a=>!fitsAge(a,age));
+    const chips=arr=>`<div class="chips">${arr.map(a=>`<button class="chip" data-act="log" data-aid="${a.id}"><span>${esc(a.label)}</span><span class="pts ${sheet.mode==='earn'?'pos':'neg'}">${sheet.mode==='earn'?'+':'−'}${a.points}</span></button>`).join('')}</div>`;
+    body=(fit.length?`<div class="grp">Good for age ${age}</div>${chips(fit)}`:'')+(other.length?`<div class="grp">Other ages</div>${chips(other)}`:'')+
+      (!list.length?`<p class="empty">No choices yet. Add some under "Ways to earn &amp; lose", or use a custom amount.</p>`:'')+
+      `<form id="custom" class="formrow" style="grid-template-columns:2fr 1fr auto">
+        <label class="f">Reason<input id="cNote" maxlength="60" placeholder="${sheet.mode==='earn'?'e.g. Helped grandma':'e.g. Left bike in the rain'}"></label>
+        <label class="f">Points<input id="cPts" type="number" min="1" max="1000" value="5" required></label>
+        <button class="${sheet.mode==='earn'?'b-earn':'b-lose'}" type="submit">${sheet.mode==='earn'?'Add':'Take away'}</button></form>`;
+  }else{
+    const rs=[...S.rewards].sort((a,c)=>a.cost-c.cost);
+    body=`<div class="grp">Rewards</div><div class="chips">${rs.map(r=>`<button class="chip" data-act="redeem" data-rid="${r.id}" ${r.cost>b?'disabled':''}><span>${esc(r.label)}${r.cost>b?`<br><small>${r.cost-b} more needed</small>`:''}</span><span class="pts">${r.cost}</span></button>`).join('')||'<p class="empty">No rewards yet.</p>'}</div>
+      <div class="grp">Money</div>
+      <form id="cashout" class="formrow" style="grid-template-columns:1fr 2fr auto">
+        <label class="f">Dollars<input id="dollars" type="number" min="0.5" step="0.5" value="${Math.max(0.5,Math.min(5,Math.floor(b/rate()*2)/2))}" required></label>
+        <p class="sub" id="cashNote" style="align-self:center;margin:0"></p>
+        <button class="b-cash" type="submit">Cash out</button></form>`;
+  }
+  const title={earn:'Add points',lose:'Take away points',redeem:'Cash in'}[sheet.mode];
+  root.innerHTML=`<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${title} for ${esc(k.name)}">
+    <div class="row spread"><div><h2>${title} · ${esc(k.name)}</h2><p class="sub">Balance ${b} points (${money(Math.max(0,b))})</p></div><button class="b-ghost" data-act="close">Close</button></div>
+    ${body}</div></div>`;
+  updCashNote();
+}
+function updCashNote(){
+  const d=$('#dollars'),n=$('#cashNote');if(!d||!n)return;
+  const k=kidById(sheet.kidId),cost=Math.round((Number(d.value)||0)*rate()),b=balance(k.id);
+  n.textContent=cost>b?`Needs ${cost} points, ${cost-b} more than ${k.name.split(' ')[0]} has.`:`Uses ${cost} of ${b} points.`;
+}
+function logEntry(kidId,label,points,kind){
+  return addDoc('log',{kidId,label,points,kind,at:Date.now(),...(S.uid?{by:S.uid}:{})});
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-act],[data-tab]');if(!t)return;
+  if(t.dataset.tab){S.tab=t.dataset.tab;sheet=null;render();try{localStorage.setItem('fpb-tab',S.tab)}catch{};return}
+  const a=t.dataset.act;
+  if(a==='close'){if(e.target===t||t.tagName==='BUTTON'){sheet=null;renderSheet()}return}
+  if(a==='kidview'){
+    if(S.kidMode){S.gate={a:6+Math.floor(Math.random()*4),b:6+Math.floor(Math.random()*4)};render();const g=$('#gateAns');if(g)g.focus()}
+    else{S.kidMode=true;S.gate=null;sheet=null;saveKidPrefs();render();scrollTo(0,0)}
+    return}
+  if(a==='kvpick'){S.kidSel=t.dataset.id;saveKidPrefs();render();scrollTo(0,0);return}
+  if(a==='kvswitch'){S.kidSel='';saveKidPrefs();render();scrollTo(0,0);return}
+  if(a==='gatecancel'){S.gate=null;render();return}
+  if(a==='sheet'){sheet={mode:t.dataset.mode,kidId:t.dataset.id};renderSheet();return}
+  if(a==='del'){
+    if(!t.dataset.armed){t.dataset.armed='1';const old=t.textContent;t.textContent='Tap to confirm';setTimeout(()=>{if(t.isConnected){delete t.dataset.armed;t.textContent=old}},3000);return}
+    delDoc(t.dataset.c,t.dataset.id);toast(t.dataset.c==='log'?'Entry undone':'Removed');return}
+  if(a==='log'){
+    const act=S.activities.find(x=>x.id===t.dataset.aid),k=kidById(sheet.kidId);
+    const p=sheet.mode==='earn'?act.points:-act.points;
+    logEntry(k.id,act.label,p,sheet.mode);toast(`${p>0?'+':'−'}${Math.abs(p)} for ${k.name}: ${act.label}`);sheet=null;renderSheet();return}
+  if(a==='redeem'){
+    const r=S.rewards.find(x=>x.id===t.dataset.rid),k=kidById(sheet.kidId);
+    if(r.cost>balance(k.id))return;
+    logEntry(k.id,r.label,-r.cost,'redeem');toast(`${k.name} cashed in ${r.label}`);sheet=null;renderSheet();return}
+  if(a==='saveRate'){const v=Math.round(Number($('#ppd').value));if(v>=1){saveSettings({pointsPerDollar:v});toast(`Saved: ${v} points per $1`)}return}
+});
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.dataset.act==='goal'){updDoc('kids',t.dataset.id,{goalId:t.value||null})}
+  if(t.dataset.act==='histKid'){S.histKid=t.value;render()}
+});
+document.addEventListener('input',e=>{if(e.target.id==='dollars')updCashNote()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&sheet){sheet=null;renderSheet()}});
+document.addEventListener('submit',e=>{
+  e.preventDefault();const f=e.target.id;render.skip=true;
+  if(f==='gate'){
+    if(Number($('#gateAns').value)===S.gate.a*S.gate.b){S.kidMode=false;S.gate=null;saveKidPrefs();render();toast('Grown-up mode')}
+    else{$('#gateAns').value='';toast('Not quite. Ask a grown-up!')}
+    return}
+  if(f==='addKid'){
+    const name=$('#kName').value.trim();if(!name)return;
+    addDoc('kids',{name,age:Number($('#kAge').value),color:$('#kColor').value,createdAt:Date.now(),goalId:null});toast(`Added ${name}`);
+  }else if(f==='addAct'){
+    let mn=Number($('#aMin').value)||2,mx=Number($('#aMax').value)||16;if(mn>mx)[mn,mx]=[mx,mn];
+    addDoc('activities',{label:$('#aLabel').value.trim(),points:Math.abs(Math.round(Number($('#aPts').value)))||1,type:$('#aType').value,minAge:mn,maxAge:mx});toast('Added');
+  }else if(f==='addRew'){
+    addDoc('rewards',{label:$('#rLabel').value.trim(),cost:Math.abs(Math.round(Number($('#rCost').value)))||1,category:$('#rCat').value});toast('Reward added');
+  }else if(f==='custom'){
+    const k=kidById(sheet.kidId),n=Math.abs(Math.round(Number($('#cPts').value)))||0;if(!n)return;
+    const p=sheet.mode==='earn'?n:-n,label=$('#cNote').value.trim()||(p>0?'Bonus points':'Points taken away');
+    logEntry(k.id,label,p,sheet.mode);toast(`${p>0?'+':'−'}${n} for ${k.name}`);sheet=null;renderSheet();
+  }else if(f==='cashout'){
+    const k=kidById(sheet.kidId),d=Number($('#dollars').value)||0,cost=Math.round(d*rate());
+    if(!cost||cost>balance(k.id)){updCashNote();return}
+    logEntry(k.id,`Cashed out $${d.toFixed(2)}`,-cost,'redeem');toast(`${k.name} cashed out $${d.toFixed(2)}`);sheet=null;renderSheet();
+  }
+});
+
+try{const t=localStorage.getItem('fpb-tab');if(t&&['kids','activities','rewards','history','settings'].includes(t))S.tab=t}catch{}
+try{S.kidMode=localStorage.getItem('fpb-kid')==='1';S.kidSel=localStorage.getItem('fpb-kidsel')||''}catch{}
+if(location.hash==='#kidview')S.kidMode=true;
+start();
+</script>
+
+</body>
+</html>

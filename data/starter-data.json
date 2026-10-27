@@ -1,0 +1,209 @@
+{
+  "settings": {
+    "pointsPerDollar": 10
+  },
+  "kids": [],
+  "log": [],
+  "activities": [
+    {
+      "id": "e01",
+      "label": "Put toys away",
+      "points": 5,
+      "type": "earn",
+      "minAge": 2,
+      "maxAge": 6
+    },
+    {
+      "id": "e02",
+      "label": "Brush teeth without a reminder",
+      "points": 3,
+      "type": "earn",
+      "minAge": 2,
+      "maxAge": 8
+    },
+    {
+      "id": "e03",
+      "label": "Help set the table",
+      "points": 5,
+      "type": "earn",
+      "minAge": 4,
+      "maxAge": 10
+    },
+    {
+      "id": "e04",
+      "label": "Make bed",
+      "points": 5,
+      "type": "earn",
+      "minAge": 4,
+      "maxAge": 16
+    },
+    {
+      "id": "e05",
+      "label": "Feed the pet",
+      "points": 5,
+      "type": "earn",
+      "minAge": 5,
+      "maxAge": 16
+    },
+    {
+      "id": "e06",
+      "label": "Read for 20 minutes",
+      "points": 10,
+      "type": "earn",
+      "minAge": 5,
+      "maxAge": 16
+    },
+    {
+      "id": "e07",
+      "label": "Finish homework",
+      "points": 10,
+      "type": "earn",
+      "minAge": 6,
+      "maxAge": 16
+    },
+    {
+      "id": "e08",
+      "label": "Empty the dishwasher",
+      "points": 10,
+      "type": "earn",
+      "minAge": 8,
+      "maxAge": 16
+    },
+    {
+      "id": "e09",
+      "label": "Take out trash and recycling",
+      "points": 10,
+      "type": "earn",
+      "minAge": 9,
+      "maxAge": 16
+    },
+    {
+      "id": "e10",
+      "label": "Do own laundry",
+      "points": 15,
+      "type": "earn",
+      "minAge": 11,
+      "maxAge": 16
+    },
+    {
+      "id": "e11",
+      "label": "Big yard job",
+      "points": 25,
+      "type": "earn",
+      "minAge": 13,
+      "maxAge": 16
+    },
+    {
+      "id": "e12",
+      "label": "Kind act or helping a sibling",
+      "points": 5,
+      "type": "earn",
+      "minAge": 2,
+      "maxAge": 16
+    },
+    {
+      "id": "e13",
+      "label": "Great report from teacher",
+      "points": 15,
+      "type": "earn",
+      "minAge": 5,
+      "maxAge": 16
+    },
+    {
+      "id": "l01",
+      "label": "Not listening after two reminders",
+      "points": 5,
+      "type": "lose",
+      "minAge": 2,
+      "maxAge": 16
+    },
+    {
+      "id": "l02",
+      "label": "Hitting or name-calling",
+      "points": 10,
+      "type": "lose",
+      "minAge": 2,
+      "maxAge": 16
+    },
+    {
+      "id": "l03",
+      "label": "Talking back",
+      "points": 5,
+      "type": "lose",
+      "minAge": 5,
+      "maxAge": 16
+    },
+    {
+      "id": "l04",
+      "label": "Screen time past the limit",
+      "points": 10,
+      "type": "lose",
+      "minAge": 6,
+      "maxAge": 16
+    },
+    {
+      "id": "l05",
+      "label": "Breaking a house rule",
+      "points": 15,
+      "type": "lose",
+      "minAge": 8,
+      "maxAge": 16
+    }
+  ],
+  "rewards": [
+    {
+      "id": "r01",
+      "label": "Pick the family movie at home",
+      "cost": 15,
+      "category": "privilege"
+    },
+    {
+      "id": "r02",
+      "label": "30 min extra screen time",
+      "cost": 20,
+      "category": "screen"
+    },
+    {
+      "id": "r03",
+      "label": "Stay up 30 min later",
+      "cost": 25,
+      "category": "privilege"
+    },
+    {
+      "id": "r04",
+      "label": "Trip to the park",
+      "cost": 30,
+      "category": "outing"
+    },
+    {
+      "id": "r05",
+      "label": "Ice cream outing",
+      "cost": 40,
+      "category": "outing"
+    },
+    {
+      "id": "r06",
+      "label": "Friend sleepover",
+      "cost": 100,
+      "category": "privilege"
+    },
+    {
+      "id": "r07",
+      "label": "Movie theater trip",
+      "cost": 120,
+      "category": "outing"
+    },
+    {
+      "id": "r08",
+      "label": "Day with Mom",
+      "cost": 150,
+      "category": "time"
+    },
+    {
+      "id": "r09",
+      "label": "Day with Dad",
+      "cost": 150,
+      "category": "time"
+    }
+  ]
+}

@@ -261,7 +261,7 @@ function render(){
   const main=$('#main');
   const keepFocus=document.activeElement&&main.contains(document.activeElement)&&document.activeElement.id;
   const banner=S.mode==='example'?`<div class="banner">This preview shows example kids and history so you can try it. Nothing here is saved. Open the shared link in Claude to use the real, synced point bank.</div>`:'';
-  const typed={};main.querySelectorAll('form input[id]').forEach(i=>typed[i.id]=i.value);
+  const typed={};main.querySelectorAll('form input[id],form select[id]').forEach(i=>typed[i.id]=i.value);
   main.innerHTML=S.kidMode?banner+vKidView():banner+({kids:vKids,activities:vActivities,rewards:vRewards,history:vHistory,settings:vSettings}[S.tab])();
   if(!render.skip)for(const id in typed){const i=document.getElementById(id);if(i)i.value=typed[id]}
   render.skip=false;
@@ -353,14 +353,35 @@ function vSettings(){
     <p class="sub">With ${rate()} points per $1, a kid with 50 points can cash out ${money(50)}.</p></section>
   ${S.mode==='local'?`<section class="panel"><h2>This copy saves on this device</h2>
     <p class="sub" style="max-width:62ch">Points you log here stay in this browser and don't sync to other phones. To share live with the other parent, use the version in Claude.</p></section>`:`<section class="panel"><h2>Sharing with the other parent</h2>
-    <p class="sub" style="max-width:62ch">Everyone you share this page with sees the same kids, points and history, live. Use Share at the top of the page and give the other parent Contributor or Editor access so they can add and take away points too. Kids don't need their own access yet.</p></section>`}`;
+    <p class="sub" style="max-width:62ch">Everyone you share this page with sees the same kids, points and history, live. Use Share at the top of the page and give the other parent Contributor or Editor access so they can add and take away points too. Kids don't need their own access yet.</p></section>`}
+  ${vLock()}`;
 }
+const LOCKS={math1:'Easy math, like 7 × 8',math2:'Medium math, like 47 × 6',math3:'Hard math, like 38 × 27',math4:'Very hard math, like 64 × 23 − 158',custom:'My own question'};
+function vLock(){
+  const t=S.settings.lockType||'math1';
+  return `<form class="panel" id="lockForm"><h2>Kid view lock</h2>
+    <p class="sub" style="max-width:62ch">Leaving kid view asks this question. Pick something your kids can't answer yet.</p>
+    <label class="f">Question type<select id="lockType">${Object.entries(LOCKS).map(([k,v])=>`<option value="${k}" ${k===t?'selected':''}>${v}</option>`).join('')}</select></label>
+    <div id="customLock" class="formrow" style="grid-template-columns:2fr 1fr" ${t==='custom'?'':'hidden'}>
+      <label class="f">Your question<input id="lockQ" maxlength="120" value="${esc(S.settings.lockQ||'')}" placeholder="e.g. What's the grown-up PIN?"></label>
+      <label class="f">Answer<input id="lockA" maxlength="60" value="${esc(S.settings.lockA||'')}" autocomplete="off"></label></div>
+    <div class="row"><button class="b-cash" type="submit">Save lock</button><span class="sub" style="margin:0">Capital letters and extra spaces don't matter.</span></div></form>`;
+}
+function makeGate(){
+  const t=S.settings.lockType||'math1',R=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+  if(t==='custom'&&S.settings.lockQ&&S.settings.lockA)return {q:S.settings.lockQ,ans:String(S.settings.lockA),text:true};
+  if(t==='math2'){const a=R(12,99),b=R(3,9);return {q:`What is ${a} × ${b}?`,ans:String(a*b)}}
+  if(t==='math3'){const a=R(12,99),b=R(12,99);return {q:`What is ${a} × ${b}?`,ans:String(a*b)}}
+  if(t==='math4'){const a=R(12,99),b=R(12,99),c=R(100,Math.min(999,a*b-1));return {q:`What is ${a} × ${b} − ${c}?`,ans:String(a*b-c)}}
+  const a=R(6,9),b=R(6,9);return {q:`What is ${a} × ${b}?`,ans:String(a*b)};
+}
+const normAns=v=>String(v??'').trim().toLowerCase().replace(/,/g,'').replace(/\s+/g,' ');
 
 /* ---------- kid view: read-only, big and friendly; leaving it needs a grown-up answer ---------- */
 function vKidView(){
   if(S.mode==='loading')return `<p class="empty">Opening your point bank…</p>`;
   const gate=S.gate?`<form class="panel gate" id="gate"><h2>Grown-ups only</h2>
-    <div class="row"><label class="f">What is ${S.gate.a} × ${S.gate.b}?<input id="gateAns" type="number" inputmode="numeric" required></label>
+    <div class="row"><label class="f" style="text-transform:none;letter-spacing:0;font-size:1rem;color:var(--ink)">${esc(S.gate.q)}<input id="gateAns" ${S.gate.text?'type="text" autocomplete="off"':'type="number" inputmode="numeric"'} required></label>
     <button class="b-cash" type="submit" style="align-self:end">Unlock</button><button type="button" class="b-ghost" data-act="gatecancel" style="align-self:end">Cancel</button></div></form>`:'';
   const kids=sortKids();
   if(!kids.length)return gate+`<div class="kv"><h2>No kids here yet</h2><p class="sub">A grown-up can add kids from the Kids tab.</p></div>`;
@@ -440,7 +461,7 @@ document.addEventListener('click',e=>{
   const a=t.dataset.act;
   if(a==='close'){if(e.target===t||t.tagName==='BUTTON'){sheet=null;renderSheet()}return}
   if(a==='kidview'){
-    if(S.kidMode){S.gate={a:6+Math.floor(Math.random()*4),b:6+Math.floor(Math.random()*4)};render();const g=$('#gateAns');if(g)g.focus()}
+    if(S.kidMode){S.gate=makeGate();render();const g=$('#gateAns');if(g)g.focus()}
     else{S.kidMode=true;S.gate=null;sheet=null;saveKidPrefs();render();scrollTo(0,0)}
     return}
   if(a==='kvpick'){S.kidSel=t.dataset.id;saveKidPrefs();render();scrollTo(0,0);return}
@@ -464,15 +485,20 @@ document.addEventListener('change',e=>{
   const t=e.target;
   if(t.dataset.act==='goal'){updDoc('kids',t.dataset.id,{goalId:t.value||null})}
   if(t.dataset.act==='histKid'){S.histKid=t.value;render()}
+  if(t.id==='lockType'){const c=$('#customLock');if(c)c.hidden=t.value!=='custom'}
 });
 document.addEventListener('input',e=>{if(e.target.id==='dollars')updCashNote()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&sheet){sheet=null;renderSheet()}});
 document.addEventListener('submit',e=>{
   e.preventDefault();const f=e.target.id;render.skip=true;
   if(f==='gate'){
-    if(Number($('#gateAns').value)===S.gate.a*S.gate.b){S.kidMode=false;S.gate=null;saveKidPrefs();render();toast('Grown-up mode')}
+    if(normAns($('#gateAns').value)===normAns(S.gate.ans)){S.kidMode=false;S.gate=null;saveKidPrefs();render();toast('Grown-up mode')}
     else{$('#gateAns').value='';toast('Not quite. Ask a grown-up!')}
     return}
+  if(f==='lockForm'){
+    const t=$('#lockType').value,q=$('#lockQ').value.trim(),an=$('#lockA').value.trim();
+    if(t==='custom'&&(!q||!an)){toast('Add both a question and an answer.');return}
+    saveSettings({lockType:t,lockQ:q,lockA:an});toast('Lock saved');return}
   if(f==='addKid'){
     const name=$('#kName').value.trim();if(!name)return;
     addDoc('kids',{name,age:Number($('#kAge').value),color:$('#kColor').value,createdAt:Date.now(),goalId:null});toast(`Added ${name}`);

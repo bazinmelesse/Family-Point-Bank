@@ -8,7 +8,7 @@ A points and rewards app for kids aged 2 to 16. Parents add or take away points 
 - **+ Points / − Points:** pick from a list of chores and behaviors, or enter a custom amount and reason. Choices that suit the kid's age show first.
 - **Cash in:** spend points on a reward or cash out money at a set rate (10 points = $1 by default, changeable in Settings).
 - **History:** every change, newest first, with undo.
-- **Kid view:** a big, read-only screen for kids. Leaving it takes a times-table question so kids can't switch back to the parent screens.
+- **Kid view:** a big, read-only screen for kids. Leaving it takes a grown-up question, set in Settings: math from easy to very hard, or your own question and answer.
 
 ## Running it
 

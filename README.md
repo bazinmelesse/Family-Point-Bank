@@ -31,9 +31,24 @@ Outside Claude, each phone or browser keeps its own copy. Clearing browser data 
 
 To sync between parents outside Claude, the app needs a backend such as Firebase or Supabase. The storage code is in four small functions (`addDoc`, `delDoc`, `updDoc` and `saveSettings`) plus the subscriptions in `start()`, so the backend can be swapped in there.
 
+## Wall display for an old iPad
+
+`display.html` is a full-screen board that shows each kid's total points in very large numbers, readable from across a room. It is written in plain CSS and old-style JavaScript so it runs on iPads as old as iOS 9.
+
+- Open `display.html` in Safari on the iPad (for example `https://<your-username>.github.io/<repo-name>/display.html`).
+- Tap Share → **Add to Home Screen**. Opening it from the home screen icon runs it full screen with no browser bars.
+- Set **Settings → Display & Brightness → Auto-Lock → Never** on the iPad and keep it plugged in. Web pages can't stop an old iPad from sleeping on their own.
+- It refreshes itself every few seconds and fits 1 to 6+ kids in either orientation.
+
+**Where the display gets its numbers.** By default it reads the points saved on the same device, in the same browser. Points added on a phone won't show on the iPad, because each device keeps its own copy (see "Where data is saved"). Also, iOS gives a home screen app its own storage, separate from Safari.
+
+To show points added on another device, the display can read a shared online copy instead: add `?src=<url>` to the address, where the URL returns JSON in the same shape the app saves (`kids` and `log`). A free Firebase Realtime Database works for this, since its data can be read at `https://<project>.firebaseio.com/<path>.json`. In that mode it checks every 30 seconds. The main app would need to write to the same place, which it doesn't do yet.
+
 ## Files
 
 - `index.html`: the whole app.
+- `display.html`: the full-screen points board for a wall iPad.
+- `icon-180.png`: the home screen icon for the board.
 - `data/starter-data.json`: the starter chores, behaviors and rewards the app begins with. It's for reference only, since the same lists are built into `index.html`.
 
 ## Data model

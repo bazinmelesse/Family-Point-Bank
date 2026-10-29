@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Points">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Points Board</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Baloo+2:700,800&amp;display=swap">
+<style>
+/* Wall display for an old iPad: one card per kid, sized by script to fill the screen.
+   Plain CSS and ES5 only, so it runs on iOS 9 Safari. */
+html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#0B1520;color:#F3F7FB}
+body{font-family:"Baloo 2","Avenir Next","Helvetica Neue",Helvetica,Arial,sans-serif;-webkit-user-select:none;user-select:none;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:rgba(0,0,0,0)}
+#board{position:absolute;left:0;top:0;right:0;bottom:0}
+.card{position:absolute;box-sizing:border-box;border-radius:28px;background:#14263A;border-top:14px solid #6FA2F0;overflow:hidden;text-align:center}
+.name{position:absolute;left:0;right:0;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4%;line-height:1}
+.num{position:absolute;left:0;right:0;font-weight:800;line-height:1;white-space:nowrap;letter-spacing:-0.02em}
+.unit{position:absolute;left:0;right:0;color:#9FB3C6;font-weight:700;line-height:1;white-space:nowrap}
+.neg{color:#F07B64}
+#msg{position:absolute;left:8%;right:8%;top:30%;text-align:center;font-size:44px;font-weight:700;line-height:1.2;display:none}
+#msg small{display:block;font-size:24px;color:#9FB3C6;font-weight:600;margin-top:16px}
+#foot{position:absolute;left:0;right:0;bottom:0;height:28px;line-height:28px;padding:0 16px;font-size:16px;color:#5F768C;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif}
+#foot a{color:#5F768C;text-decoration:none;float:right}
+</style>
+</head>
+<body>
+<div id="board"></div>
+<div id="msg"></div>
+<div id="foot"><a href="index.html">Open app</a><span id="upd"></span></div>
+<script>
+(function(){
+  var COLORS={k1:'#6FA2F0',k2:'#EE7BAA',k3:'#4FC79A',k4:'#AE87EE',k5:'#F29A55',k6:'#47BFD3'};
+  var FOOT=28,GAP=18;
+  /* Optional ?src=<url of JSON shaped like the app's saved data> lets a shared online copy replace this device's storage. */
+  var SRC=param('src');
+  var POLL=SRC?30000:4000;
+  var data=null,lastJson='',lastOk=0;
+
+  function param(k){
+    var m=new RegExp('[?&]'+k+'=([^&#]*)').exec(location.search);
+    return m?decodeURIComponent(m[1]):'';
+  }
+  function $(id){return document.getElementById(id)}
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+
+  function readLocal(){
+    var raw=null;
+    try{raw=localStorage.getItem('fpb-data')}catch(e){}
+    accept(raw||'');
+  }
+  function readRemote(){
+    var x=new XMLHttpRequest();
+    x.open('GET',SRC+(SRC.indexOf('?')<0?'?':'&')+'t='+new Date().getTime(),true);
+    x.onreadystatechange=function(){
+      if(x.readyState!==4)return;
+      if(x.status>=200&&x.status<300)accept(x.responseText);
+      else showUpdated(true);
+    };
+    try{x.send()}catch(e){showUpdated(true)}
+  }
+  function accept(json){
+    lastOk=new Date().getTime();
+    if(json!==lastJson){
+      lastJson=json;
+      try{data=json?JSON.parse(json):null}catch(e){data=null}
+      draw();
+    }
+    showUpdated(false);
+  }
+  function refresh(){if(SRC)readRemote();else readLocal()}
+
+  function totals(){
+    var kids=(data&&data.kids)||[],log=(data&&data.log)||[],sum={},i,out=[];
+    for(i=0;i<log.length;i++){var e=log[i];sum[e.kidId]=(sum[e.kidId]||0)+(Number(e.points)||0)}
+    for(i=0;i<kids.length;i++)out.push({name:kids[i].name||'?',color:COLORS[kids[i].color]||COLORS.k1,pts:sum[kids[i].id]||0,at:kids[i].createdAt||0});
+    out.sort(function(a,b){return a.at-b.at});
+    return out;
+  }
+
+  function draw(){
+    var list=totals(),board=$('board'),msg=$('msg');
+    if(!list.length){
+      board.innerHTML='';msg.style.display='block';
+      msg.innerHTML=data?'No kids yet<small>Add kids in the app and they will show up here.</small>'
+        :'No points on this iPad yet<small>'+(SRC?'Could not read the shared points.':'Points live on the device where they were added. See the README for how to share them.')+'</small>';
+      return;
+    }
+    msg.style.display='none';
+    var W=window.innerWidth,H=window.innerHeight-FOOT,n=list.length,digits=1,i;
+    for(i=0;i<n;i++)digits=Math.max(digits,String(list[i].pts).length);
+    /* Try every column count and keep the one that gives the biggest number. */
+    var best=null;
+    for(var cols=1;cols<=n;cols++){
+      var rows=Math.ceil(n/cols),cw=(W-GAP*(cols+1))/cols,ch=(H-GAP*(rows+1))/rows;
+      var f=Math.min(ch*0.5,cw*0.9/(digits*0.56+0.1));
+      if(!best||f>best.f)best={cols:cols,rows:rows,cw:cw,ch:ch,f:f};
+    }
+    var html='',f=Math.floor(best.f),nameF=Math.floor(Math.min(f*0.34,best.ch*0.16,best.cw/7)),unitF=Math.floor(Math.max(18,Math.min(f*0.16,best.ch*0.08)));
+    var top=(best.ch-(nameF+f*0.95+unitF))/2;
+    for(i=0;i<n;i++){
+      var k=list[i],c=i%best.cols,r=Math.floor(i/best.cols);
+      /* Center a short last row. */
+      var inRow=(r===best.rows-1)?n-r*best.cols:best.cols,off=(best.cols-inRow)*(best.cw+GAP)/2;
+      var x=GAP+off+c*(best.cw+GAP),y=GAP+r*(best.ch+GAP);
+      html+='<div class="card" style="left:'+x+'px;top:'+y+'px;width:'+best.cw+'px;height:'+best.ch+'px;border-top-color:'+k.color+'">'
+        +'<div class="name" style="top:'+(top-nameF*0.15)+'px;font-size:'+nameF+'px;color:'+k.color+'">'+esc(k.name)+'</div>'
+        +'<div class="num'+(k.pts<0?' neg':'')+'" style="top:'+(top+nameF*0.95)+'px;font-size:'+f+'px">'+(k.pts<0?'&minus;':'')+Math.abs(k.pts)+'</div>'
+        +'<div class="unit" style="top:'+(top+nameF*0.95+f*0.92)+'px;font-size:'+unitF+'px">'+(Math.abs(k.pts)===1?'point':'points')+'</div>'
+        +'</div>';
+    }
+    board.innerHTML=html;
+  }
+
+  function showUpdated(stale){
+    var el=$('upd');
+    if(!lastOk){el.innerHTML=stale?'Could not load points':'';return}
+    var d=new Date(lastOk),h=d.getHours(),m=d.getMinutes();
+    el.innerHTML=(stale?'Offline. Last updated ':'Updated ')+((h%12)||12)+':'+(m<10?'0':'')+m+(h<12?' AM':' PM');
+  }
+
+  window.addEventListener('storage',function(e){if(!SRC&&(!e.key||e.key==='fpb-data'))readLocal()});
+  window.addEventListener('resize',draw);
+  window.addEventListener('orientationchange',function(){setTimeout(draw,300)});
+  document.addEventListener('visibilitychange',function(){if(!document.hidden)refresh()});
+  /* The web font can arrive after the first draw; redraw once it has. */
+  window.addEventListener('load',draw);
+  refresh();
+  setInterval(refresh,POLL);
+  /* Reload once a night so a long-running wall screen picks up app updates. */
+  setTimeout(function(){location.reload()},6*3600000);
+})();
+</script>
+</body>
+</html>

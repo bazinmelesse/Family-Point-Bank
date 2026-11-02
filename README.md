@@ -2,7 +2,11 @@
 
 A points and rewards app for kids aged 2 to 16. Parents add or take away points for chores, school and behavior, and kids cash points in for rewards (screen time, outings, a day with Mom or Dad) or for money.
 
-## Features
+## Phone and tablet app
+
+`mobile/` is a React Native + Expo version of the app. It shows all kids together on one kid view screen (made for a wall iPad) and adds a Calendar tab for each kid's activities and schedules. See [`mobile/README.md`](mobile/README.md) to run it.
+
+## Features (web app)
 
 - **Kids:** add as many as you like, each with an age and a color. Each card shows the balance, its dollar value, and progress toward a saving goal.
 - **+ Points / − Points:** pick from a list of chores and behaviors, or enter a custom amount and reason. Choices that suit the kid's age show first.
@@ -49,6 +53,7 @@ To show points added on another device, the display can read a shared online cop
 - `index.html`: the whole app.
 - `display.html`: the full-screen points board for a wall iPad.
 - `icon-180.png`: the home screen icon for the board.
+- `mobile/`: the React Native + Expo app.
 - `data/starter-data.json`: the starter chores, behaviors and rewards the app begins with. It's for reference only, since the same lists are built into `index.html`.
 
 ## Data model

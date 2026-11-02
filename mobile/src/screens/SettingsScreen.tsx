@@ -1,9 +1,92 @@
 import React, { useState } from 'react';
-import { Share, View } from 'react-native';
+import { Share, Text, View } from 'react-native';
 import { Btn, Card, Field, H2, Input, Pill, Row, Sub, useToast } from '../components/ui';
 import { normalize, useStore } from '../store';
+import { boardSrc } from '../sync';
+import { useTheme } from '../theme';
 import type { BankData, LockType } from '../types';
 import { LOCKS, money, rate } from '../utils';
+
+const STATE_TEXT = {
+  local: 'Off',
+  connecting: 'Connecting…',
+  live: 'On and connected',
+  offline: 'On, but this device is offline. Changes will send when it reconnects.',
+  error: 'On, but the last change didn\'t save online. Check the database rules.',
+} as const;
+
+function SyncCard() {
+  const t = useTheme();
+  const toast = useToast();
+  const { sync, syncState, connectSync, disconnectSync } = useStore();
+  const [url, setUrl] = useState('');
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  const go = async (mode: 'create' | 'join') => {
+    setBusy(true);
+    setErr('');
+    try {
+      await connectSync(url, code, mode);
+      toast(mode === 'create' ? 'Sync is on. Use the family code on your other devices.' : 'Joined your family');
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    }
+    setBusy(false);
+  };
+
+  if (sync)
+    return (
+      <Card>
+        <View>
+          <H2>Sync between devices</H2>
+          <Sub>{STATE_TEXT[syncState]}</Sub>
+        </View>
+        <Field label="Database">
+          <Text selectable style={{ color: t.ink }}>{sync.url}</Text>
+        </Field>
+        <Field label="Family code">
+          <Text selectable style={{ color: t.ink, fontSize: 20, fontWeight: '800', letterSpacing: 1 }}>{sync.code}</Text>
+        </Field>
+        <Sub>
+          On each other phone or iPad, open Settings, enter the same database address and this code, and tap Join. Treat the
+          code like a password: anyone who has it can see and change your points.
+        </Sub>
+        <Field label="Old iPad board address">
+          <Text selectable style={{ color: t.muted, fontSize: 13 }}>display.html?src={boardSrc(sync)}</Text>
+        </Field>
+        <Row>
+          <Btn label="Share code" onPress={() => { Share.share({ message: `Family Point Bank\nDatabase: ${sync.url}\nFamily code: ${sync.code}` }).catch(() => {}); }} />
+          <Btn label="Turn off sync on this device" variant="ghost" onPress={disconnectSync} />
+        </Row>
+      </Card>
+    );
+
+  return (
+    <Card>
+      <View>
+        <H2>Sync between devices</H2>
+        <Sub>Off. Points are saved only on this device. Turn sync on so every parent's phone and the iPad show the same points, live. The setup steps are in the app's README.</Sub>
+      </View>
+      <Field label="Firebase database address">
+        <Input value={url} onChangeText={setUrl} placeholder="https://your-family-default-rtdb.firebaseio.com" autoCapitalize="none" autoCorrect={false} keyboardType="url" />
+      </Field>
+      <Row style={{ alignItems: 'flex-end' }}>
+        <Btn label={busy ? 'Working…' : 'Start a new family'} variant="cash" disabled={busy || !url.trim()} onPress={() => go('create')} />
+        <Sub style={{ marginTop: 0, flexShrink: 1 }}>On the first device. Uploads this device's kids and points.</Sub>
+      </Row>
+      <Field label="Or join with a family code">
+        <Input value={code} onChangeText={setCode} placeholder="abcd-efgh-jkmn-pqrs-tuvw-xyz2" autoCapitalize="none" autoCorrect={false} />
+      </Field>
+      <Row>
+        <Btn label={busy ? 'Working…' : 'Join'} disabled={busy || !url.trim() || !code.trim()} onPress={() => go('join')} />
+        <Sub style={{ marginTop: 0, flexShrink: 1 }}>Replaces this device's data with your family's.</Sub>
+      </Row>
+      {!!err && <Text style={{ color: t.lose, fontWeight: '700' }}>{err}</Text>}
+    </Card>
+  );
+}
 
 export function SettingsScreen() {
   const toast = useToast();
@@ -17,6 +100,8 @@ export function SettingsScreen() {
 
   return (
     <View style={{ gap: 16 }}>
+      <SyncCard />
+
       <Card>
         <H2>Points and money</H2>
         <Row style={{ alignItems: 'flex-end' }}>
@@ -72,8 +157,8 @@ export function SettingsScreen() {
 
       <Card>
         <View>
-          <H2>Where your data lives</H2>
-          <Sub>Everything is saved on this device. To move it to another phone or iPad, copy it here and paste it there.</Sub>
+          <H2>Copy or paste data</H2>
+          <Sub>A backup, or a way to move data without sync. With sync on, pasting replaces your family's data on every device.</Sub>
         </View>
         <Row>
           <Btn
@@ -101,7 +186,7 @@ export function SettingsScreen() {
               }
             }}
           />
-          <Sub style={{ marginTop: 0 }}>This replaces everything on this device.</Sub>
+          <Sub style={{ marginTop: 0 }}>This replaces everything.</Sub>
         </Row>
       </Card>
     </View>

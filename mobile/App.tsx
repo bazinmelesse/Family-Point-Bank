@@ -25,7 +25,7 @@ const TABS = [
 function Main() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
-  const { ready, prefs, setPrefs } = useStore();
+  const { ready, prefs, setPrefs, sync, syncState } = useStore();
 
   if (!ready) return <View style={{ flex: 1, backgroundColor: t.bg }} />;
   if (prefs.kidMode) return <KidBoard onExit={() => setPrefs({ kidMode: false })} />;
@@ -39,7 +39,13 @@ function Main() {
           <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ color: t.accentInk, fontWeight: '900' }}>★</Text>
           </View>
-          <Text style={{ fontSize: 22, fontWeight: '900', color: t.ink, flex: 1 }} numberOfLines={1}>Family Point Bank</Text>
+          <Text style={{ fontSize: 22, fontWeight: '900', color: t.ink, flexShrink: 1 }} numberOfLines={1}>Family Point Bank</Text>
+          <Pressable onPress={() => setPrefs({ tab: 'settings' })} accessibilityRole="button" style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: syncState === 'live' ? t.earn : syncState === 'error' ? t.lose : t.muted }} />
+            <Text style={{ color: t.muted, fontSize: 12 }} numberOfLines={1}>
+              {!sync ? 'This device only' : { local: 'This device only', connecting: 'Connecting…', live: 'Synced', offline: 'Offline', error: 'Not saving online' }[syncState]}
+            </Text>
+          </Pressable>
           <Pressable
             onPress={() => setPrefs({ kidMode: true })}
             accessibilityRole="button"

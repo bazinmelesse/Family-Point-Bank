@@ -56,7 +56,7 @@ Every family uses the same Firebase project, so friends and family don't set any
 3. **Authentication → Get started → Email/Password:** turn on the first switch and save.
 4. **Project settings → Your apps → `</>` (Web):** register an app and copy the `firebaseConfig` values into [`src/firebaseConfig.ts`](src/firebaseConfig.ts).
 
-Until `src/firebaseConfig.ts` is filled in, the app runs in this-device-only mode.
+This repo is already set up with the `point-system-for-kids` project. If `src/firebaseConfig.ts` is ever emptied, the app falls back to this-device-only mode.
 
 ### Testing against the Firebase emulators
 

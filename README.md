@@ -4,7 +4,7 @@ A points and rewards app for kids aged 2 to 16. Parents add or take away points 
 
 ## Phone and tablet app
 
-`mobile/` is a React Native + Expo version of the app. It shows all kids together on one kid view screen (made for a wall iPad) and adds a Calendar tab for each kid's activities and schedules. It can sync live between both parents' phones and the iPad through a free Firebase database. Install it on a phone or iPad by opening `https://<your-username>.github.io/<repo-name>/app/` in Safari and tapping Share → Add to Home Screen. See [`mobile/README.md`](mobile/README.md) for setup.
+`mobile/` is a React Native + Expo version of the app. It shows all kids together on one kid view screen (made for a wall iPad) and adds a Calendar tab for each kid's activities and schedules. Families sign up with an email and password and invite the other parent with a code, so the same points show live on every phone and the iPad. Friends can sign up for their own family the same way. Install it on a phone or iPad by opening `https://<your-username>.github.io/<repo-name>/app/` in Safari and tapping Share → Add to Home Screen. See [`mobile/README.md`](mobile/README.md) for setup.
 
 ## Features (web app)
 
@@ -46,7 +46,7 @@ To sync between parents outside Claude, the app needs a backend such as Firebase
 
 **Where the display gets its numbers.** By default it reads the points saved on the same device, in the same browser. Points added on a phone won't show on the iPad, because each device keeps its own copy (see "Where data is saved"). Also, iOS gives a home screen app its own storage, separate from Safari.
 
-To show points added on another device, the display can read a shared online copy instead: add `?src=<url>` to the address, where the URL returns JSON with `kids` and `log` (as lists, or as objects keyed by id). In that mode it checks every 30 seconds. The phone app in `mobile/` writes exactly this when sync is on, and its Settings screen shows the full address to use.
+To show points added on another device, the display can read a shared online copy instead: add `?src=<url>` to the address, where the URL returns JSON with `kids` and `log` (as lists, or as objects keyed by id), or `kids` with a `points` total each. In that mode it checks every 30 seconds. In the phone app, Settings → **Turn on old iPad board** publishes exactly this and shows the full address to use.
 
 ## Files
 

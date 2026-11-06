@@ -15,13 +15,13 @@ The app is published as a home-screen web app on GitHub Pages, at
 1. Open that address in **Safari** on the iPhone or iPad.
 2. Tap **Share → Add to Home Screen**, then **Add**.
 3. Open it from the new **Points** icon. It runs full screen like a normal app.
-4. In **Settings → Sync between devices**, join your family (see below), so every device shows the same points.
+4. Create an account and start or join your family (see below).
 
 It updates on its own: every change merged into `main` is rebuilt and published by `.github/workflows/pages.yml`.
 
 **One-time setup:** in the repository on GitHub, open **Settings → Pages** and set **Source** to **GitHub Actions**. The next push to `main` publishes the site. You can also run it by hand from **Actions → Publish to GitHub Pages → Run workflow**.
 
-On iPhone, an app added to the home screen keeps its own storage, separate from Safari. Sync takes care of that, so join the family from inside the home-screen app.
+On iPhone, an app added to the home screen keeps its own storage and sign-in, separate from Safari, so sign in from inside the home-screen app.
 
 ## Running it for development
 
@@ -37,36 +37,44 @@ Scan the QR code with the camera (iPhone/iPad) or Expo Go (Android). Press `w` t
 
 A native App Store-style build is also possible with EAS (`npx eas-cli@latest build --platform ios`). Installing it on iPhones and iPads needs an Apple Developer account.
 
-## Where data is saved
+## Accounts and families
 
-Each device saves its own copy with AsyncStorage, so the app works offline and opens instantly. Turn on **sync** to share one copy between both parents' phones and the iPad: points, kids, rewards, calendar and settings show up on every device within a second or two.
+Anyone with the app's link can create a free account (email and password) and start a family. A family's kids, points, rewards, calendar and settings are shared live with every grown-up in that family and with nobody else.
 
-### Turning on sync (about 10 minutes, free)
+- **Start a family:** the first parent signs up and taps **Start a family**. Kids already added on that device (from trying it without an account) come along.
+- **Invite the other parent:** **Settings** shows the family's invite code. The other parent creates their own account, taps **Join**, and enters the code. The iPad can sign in to either parent's account.
+- **Manage:** Settings lists everyone in the family and can remove someone, make a new invite code (the old one stops working), rename the family, sign out, or leave the family.
+- **Without an account:** "try it without an account" keeps everything on that one device. Settings → **Create an account** moves it into a family later.
+- **Old iPad board:** Settings → **Turn on old iPad board** publishes just the kids' names, colors and totals at a hard-to-guess address that `display.html?src=` can read.
 
-Sync uses a Firebase Realtime Database. The free Spark plan is far more than a family needs.
+Every family uses the same Firebase project, so friends and family don't set anything up themselves. The free Spark plan covers dozens of families. The database rules in [`firebase-rules.json`](firebase-rules.json) only let people read and change a family they belong to, and joining requires that family's current invite code.
 
-1. Go to <https://console.firebase.google.com>, sign in with a Google account, and click **Create a project**. Any name works, for example `family-points`. You can turn Google Analytics off.
-2. In the left menu open **Build → Realtime Database** and click **Create Database**. Pick the location closest to you, choose **Start in locked mode**, and click **Enable**.
-3. Open the **Rules** tab, replace everything there with the contents of [`firebase-rules.json`](firebase-rules.json), and click **Publish**.
-4. On the **Data** tab, copy the database address at the top. It looks like `https://family-points-default-rtdb.firebaseio.com`.
-5. In the app on your phone, open **Settings → Sync between devices**, paste the address, and tap **Start a new family**. This uploads the kids and points already on that phone and shows a **family code**.
-6. On every other phone or iPad, open **Settings**, paste the same address, type the family code, and tap **Join**. Tap **Share code** on the first phone to send it.
+### One-time Firebase setup (for whoever runs the app)
 
-**About the family code.** The rules only let someone read or change your family's data if they know the 29-character code, and they can't list other families. Anyone who has the code can see and change your points, so keep it within the family. To start over with a new code, tap **Turn off sync on this device** on every device, then **Start a new family** again.
+1. In the [Firebase console](https://console.firebase.google.com), create a project and a **Realtime Database** (locked mode).
+2. **Realtime Database → Rules:** paste [`firebase-rules.json`](firebase-rules.json) and click **Publish**.
+3. **Authentication → Get started → Email/Password:** turn on the first switch and save.
+4. **Project settings → Your apps → `</>` (Web):** register an app and copy the `firebaseConfig` values into [`src/firebaseConfig.ts`](src/firebaseConfig.ts).
 
-**Old iPad board.** `display.html` (the web board for older iPads) can show the synced points too. The app's Settings shows the address to use, in the form `display.html?src=https://<your-database>/families/<family-code>.json`.
+Until `src/firebaseConfig.ts` is filled in, the app runs in this-device-only mode.
 
-### Without sync
+### Testing against the Firebase emulators
 
-Use **Settings → Copy all data** on one device and paste it into **Settings → Paste data** on another. Data saved by the web app (`fpb-data` in the browser's local storage) has the same shape, so it can be pasted in too.
+Start the Auth emulator on port 9099 and the Realtime Database emulator on port 9000 (project `demo-fpb`) with the rules above, then run `EXPO_PUBLIC_FIREBASE_EMULATOR=1 npx expo start`.
+
+### Data on each device
+
+Each device keeps a copy of its family's data with AsyncStorage, so the app opens instantly and works offline; changes made offline send when it reconnects. **Settings → Copy all data / Paste data** is a backup, and also imports data saved by the original web app.
 
 ## Code layout
 
 | Path | What's in it |
 | --- | --- |
 | `App.tsx` | Header, tab bar, and switching into the kid view |
-| `src/store.tsx` | All data and the functions that change it, saved with AsyncStorage and sent to Firebase when sync is on |
-| `src/sync.ts` | Firebase Realtime Database connection, family codes, and the online data layout |
+| `src/store.tsx` | Sign-in state, the current family, all data and the functions that change it |
+| `src/cloud.ts` | Families, invite codes, members and the online data layout |
+| `src/firebase.ts`, `src/firebaseConfig.ts` | Firebase setup and the project's web config |
+| `src/screens/AccountScreens.tsx` | Sign up, sign in, password reset, start or join a family |
 | `firebase-rules.json` | Database rules to paste into the Firebase console |
 | `src/types.ts` | Data model, including calendar events |
 | `src/utils.ts` | Balances, money, dates and repeat rules, the lock question |
@@ -75,6 +83,6 @@ Use **Settings → Copy all data** on one device and paste it into **Settings �
 
 Calendar events are stored as `{ title, kidIds, date, start, end, repeat, until, place }`. An empty `kidIds` means the whole family. `repeat` is `none`, `daily`, `weekdays` or `weekly`, and dates are `YYYY-MM-DD` in local time.
 
-Online, a family lives at `/families/<code>` with each list stored as an object keyed by id (`kids`, `activities`, `rewards`, `log`, `events`) plus `settings`. Each change writes only the item it touches, so two parents logging points at the same moment don't overwrite each other.
+Online, a family lives at `/families/<id>` (see the comment at the top of `src/cloud.ts`) with each list stored as an object keyed by id (`kids`, `activities`, `rewards`, `log`, `events`) plus `settings`. Each change writes only the item it touches, so two parents logging points at the same moment don't overwrite each other.
 
 Check types with `npm run typecheck`.

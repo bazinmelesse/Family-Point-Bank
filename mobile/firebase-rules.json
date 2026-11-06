@@ -2,10 +2,37 @@
   "rules": {
     ".read": false,
     ".write": false,
-    "families": {
+
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+
+    "invites": {
       "$code": {
-        ".read": "$code.length >= 20",
-        ".write": "$code.length >= 20"
+        ".read": "auth != null",
+        ".write": "auth != null && ((newData.exists() && root.child('families/' + newData.val() + '/members/' + auth.uid).exists()) || (!newData.exists() && root.child('families/' + data.val() + '/members/' + auth.uid).exists()))"
+      }
+    },
+
+    "boards": {
+      "$key": {
+        ".read": true,
+        ".write": "auth != null && ((newData.exists() && root.child('families/' + newData.child('familyId').val() + '/members/' + auth.uid).exists() && (!data.exists() || data.child('familyId').val() === newData.child('familyId').val())) || (!newData.exists() && root.child('families/' + data.child('familyId').val() + '/members/' + auth.uid).exists()))"
+      }
+    },
+
+    "families": {
+      "$fid": {
+        ".read": "auth != null && data.child('members/' + auth.uid).exists()",
+        ".write": "auth != null && (data.child('members/' + auth.uid).exists() || (!data.exists() && newData.child('meta/owner').val() === auth.uid && newData.child('members/' + auth.uid).exists()))",
+        "members": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && !data.exists() && newData.child('via').isString() && root.child('invites/' + newData.child('via').val()).val() === $fid"
+          }
+        }
       }
     }
   }

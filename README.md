@@ -4,7 +4,7 @@ A points and rewards app for kids aged 2 to 16. Parents add or take away points 
 
 ## Phone and tablet app
 
-`mobile/` is a React Native + Expo version of the app. It shows all kids together on one kid view screen (made for a wall iPad) and adds a Calendar tab for each kid's activities and schedules. It can sync live between both parents' phones and the iPad through a free Firebase database. See [`mobile/README.md`](mobile/README.md) to run it.
+`mobile/` is a React Native + Expo version of the app. It shows all kids together on one kid view screen (made for a wall iPad) and adds a Calendar tab for each kid's activities and schedules. It can sync live between both parents' phones and the iPad through a free Firebase database. Install it on a phone or iPad by opening `https://<your-username>.github.io/<repo-name>/app/` in Safari and tapping Share → Add to Home Screen. See [`mobile/README.md`](mobile/README.md) for setup.
 
 ## Features (web app)
 
@@ -19,7 +19,7 @@ A points and rewards app for kids aged 2 to 16. Parents add or take away points 
 It is a single file, `index.html`, with no build step and no dependencies. Fonts load from Google Fonts.
 
 - **On your computer:** open `index.html` in a browser.
-- **On the web:** turn on GitHub Pages for this repo (Settings → Pages → deploy from the `main` branch, root folder). The app will be at `https://<your-username>.github.io/<repo-name>/`.
+- **On the web:** turn on GitHub Pages for this repo (Settings → Pages → Source: **GitHub Actions**). Every push to `main` publishes this app at `https://<your-username>.github.io/<repo-name>/`, the iPad board at `.../display.html`, and the phone app at `.../app/`.
 - **Kid view on a kid's device:** add `#kidview` to the end of the address.
 
 ## Where data is saved

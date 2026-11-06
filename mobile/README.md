@@ -7,9 +7,25 @@ The phone and tablet version of Family Point Bank, built with React Native and E
 
 Everything else carries over: kids with ages and colors, + Points / − Points from age-matched lists or a custom amount, cash in for rewards or money, saving goals, the earn & lose list, rewards, history with undo, points-per-dollar and the kid view lock.
 
-## Running it
+## Installing it on phones and the iPad (free)
 
-You need Node.js 20 or newer and the **Expo Go** app on your phone or iPad.
+The app is published as a home-screen web app on GitHub Pages, at
+`https://bazinmelesse.github.io/Family-Point-Bank/app/`.
+
+1. Open that address in **Safari** on the iPhone or iPad.
+2. Tap **Share → Add to Home Screen**, then **Add**.
+3. Open it from the new **Points** icon. It runs full screen like a normal app.
+4. In **Settings → Sync between devices**, join your family (see below), so every device shows the same points.
+
+It updates on its own: every change merged into `main` is rebuilt and published by `.github/workflows/pages.yml`.
+
+**One-time setup:** in the repository on GitHub, open **Settings → Pages** and set **Source** to **GitHub Actions**. The next push to `main` publishes the site. You can also run it by hand from **Actions → Publish to GitHub Pages → Run workflow**.
+
+On iPhone, an app added to the home screen keeps its own storage, separate from Safari. Sync takes care of that, so join the family from inside the home-screen app.
+
+## Running it for development
+
+You need Node.js 20 or newer, the **Expo Go** app on your phone, and a free Expo account. Sign in to the same account in Expo Go and on the computer (`npx eas-cli login`).
 
 ```bash
 cd mobile
@@ -17,9 +33,9 @@ npm install
 npx expo start
 ```
 
-Scan the QR code with the camera (iPhone/iPad) or Expo Go (Android). Press `w` to open it in a browser instead.
+Scan the QR code with the camera (iPhone/iPad) or Expo Go (Android). Press `w` to open it in a browser instead. If the phone can't reach the computer, use `npx expo start --tunnel`.
 
-To install it as a real app on the iPad without Expo Go, build it with EAS: `npx eas-cli@latest build --profile preview --platform ios` (needs a free Expo account; installing on an iPad also needs an Apple Developer account).
+A native App Store-style build is also possible with EAS (`npx eas-cli@latest build --platform ios`). Installing it on iPhones and iPads needs an Apple Developer account.
 
 ## Where data is saved
 

@@ -2,7 +2,11 @@
 
 A points and rewards app for kids aged 2 to 16. Parents add or take away points for chores, school and behavior, and kids cash points in for rewards (screen time, outings, a day with Mom or Dad) or for money.
 
-## Features
+## Phone and tablet app
+
+`mobile/` is a React Native + Expo version of the app. It shows all kids together on one kid view screen (made for a wall iPad) and adds a Calendar tab for each kid's activities and schedules. It can sync live between both parents' phones and the iPad through a free Firebase database. Install it on a phone or iPad by opening `https://<your-username>.github.io/<repo-name>/app/` in Safari and tapping Share → Add to Home Screen. See [`mobile/README.md`](mobile/README.md) for setup.
+
+## Features (web app)
 
 - **Kids:** add as many as you like, each with an age and a color. Each card shows the balance, its dollar value, and progress toward a saving goal.
 - **+ Points / − Points:** pick from a list of chores and behaviors, or enter a custom amount and reason. Choices that suit the kid's age show first.
@@ -15,7 +19,7 @@ A points and rewards app for kids aged 2 to 16. Parents add or take away points 
 It is a single file, `index.html`, with no build step and no dependencies. Fonts load from Google Fonts.
 
 - **On your computer:** open `index.html` in a browser.
-- **On the web:** turn on GitHub Pages for this repo (Settings → Pages → deploy from the `main` branch, root folder). The app will be at `https://<your-username>.github.io/<repo-name>/`.
+- **On the web:** turn on GitHub Pages for this repo (Settings → Pages → Source: **GitHub Actions**). Every push to `main` publishes this app at `https://<your-username>.github.io/<repo-name>/`, the iPad board at `.../display.html`, and the phone app at `.../app/`.
 - **Kid view on a kid's device:** add `#kidview` to the end of the address.
 
 ## Where data is saved
@@ -42,13 +46,14 @@ To sync between parents outside Claude, the app needs a backend such as Firebase
 
 **Where the display gets its numbers.** By default it reads the points saved on the same device, in the same browser. Points added on a phone won't show on the iPad, because each device keeps its own copy (see "Where data is saved"). Also, iOS gives a home screen app its own storage, separate from Safari.
 
-To show points added on another device, the display can read a shared online copy instead: add `?src=<url>` to the address, where the URL returns JSON in the same shape the app saves (`kids` and `log`). A free Firebase Realtime Database works for this, since its data can be read at `https://<project>.firebaseio.com/<path>.json`. In that mode it checks every 30 seconds. The main app would need to write to the same place, which it doesn't do yet.
+To show points added on another device, the display can read a shared online copy instead: add `?src=<url>` to the address, where the URL returns JSON with `kids` and `log` (as lists, or as objects keyed by id). In that mode it checks every 30 seconds. The phone app in `mobile/` writes exactly this when sync is on, and its Settings screen shows the full address to use.
 
 ## Files
 
 - `index.html`: the whole app.
 - `display.html`: the full-screen points board for a wall iPad.
 - `icon-180.png`: the home screen icon for the board.
+- `mobile/`: the React Native + Expo app.
 - `data/starter-data.json`: the starter chores, behaviors and rewards the app begins with. It's for reference only, since the same lists are built into `index.html`.
 
 ## Data model

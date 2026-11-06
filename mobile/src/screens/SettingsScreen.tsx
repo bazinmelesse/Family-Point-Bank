@@ -1,89 +1,117 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Share, Text, View } from 'react-native';
-import { Btn, Card, Field, H2, Input, Pill, Row, Sub, useToast } from '../components/ui';
+import { Btn, Card, ConfirmBtn, Field, H2, Input, ListItem, Pill, Row, Sub, useToast } from '../components/ui';
 import { normalize, useStore } from '../store';
-import { boardSrc } from '../sync';
+import { boardUrl } from '../firebase';
 import { useTheme } from '../theme';
 import type { BankData, LockType } from '../types';
 import { LOCKS, money, rate } from '../utils';
 
 const STATE_TEXT = {
-  local: 'Off',
   connecting: 'Connecting…',
-  live: 'On and connected',
-  offline: 'On, but this device is offline. Changes will send when it reconnects.',
-  error: 'On, but the last change didn\'t save online. Check the database rules.',
+  live: 'Synced live with everyone in your family.',
+  offline: "This device is offline. Changes will send when it's back online.",
+  error: "The last change didn't save online. Check your connection.",
 } as const;
 
-function SyncCard() {
+function FamilyCard() {
   const t = useTheme();
   const toast = useToast();
-  const { sync, syncState, connectSync, disconnectSync } = useStore();
-  const [url, setUrl] = useState('');
-  const [code, setCode] = useState('');
+  const { mode, configured, email, uid, meta, members, syncState, newInvite, removeMember, leaveFamily, signOut, setBoard, renameFamily, setPrefs } = useStore();
+  const [name, setName] = useState(meta?.name || '');
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState('');
+  useEffect(() => { setName(meta?.name || ''); }, [meta?.name]);
 
-  const go = async (mode: 'create' | 'join') => {
-    setBusy(true);
-    setErr('');
-    try {
-      await connectSync(url, code, mode);
-      toast(mode === 'create' ? 'Sync is on. Use the family code on your other devices.' : 'Joined your family');
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
-    }
-    setBusy(false);
-  };
-
-  if (sync)
+  if (mode === 'local')
     return (
       <Card>
         <View>
-          <H2>Sync between devices</H2>
-          <Sub>{STATE_TEXT[syncState]}</Sub>
+          <H2>Share with your family</H2>
+          <Sub>Right now everything is saved only on this device. Create a free account to use the same points on every parent's phone and the iPad, and to invite the other parent.</Sub>
         </View>
-        <Field label="Database">
-          <Text selectable style={{ color: t.ink }}>{sync.url}</Text>
-        </Field>
-        <Field label="Family code">
-          <Text selectable style={{ color: t.ink, fontSize: 20, fontWeight: '800', letterSpacing: 1 }}>{sync.code}</Text>
-        </Field>
-        <Sub>
-          On each other phone or iPad, open Settings, enter the same database address and this code, and tap Join. Treat the
-          code like a password: anyone who has it can see and change your points.
-        </Sub>
-        <Field label="Old iPad board address">
-          <Text selectable style={{ color: t.muted, fontSize: 13 }}>display.html?src={boardSrc(sync)}</Text>
-        </Field>
-        <Row>
-          <Btn label="Share code" onPress={() => { Share.share({ message: `Family Point Bank\nDatabase: ${sync.url}\nFamily code: ${sync.code}` }).catch(() => {}); }} />
-          <Btn label="Turn off sync on this device" variant="ghost" onPress={disconnectSync} />
-        </Row>
+        {configured ? (
+          <Row>
+            <Btn label="Create an account or sign in" variant="cash" onPress={() => setPrefs({ localOnly: false })} />
+          </Row>
+        ) : (
+          <Sub style={{ marginTop: 0 }}>Accounts turn on once the app's Firebase settings are filled in (src/firebaseConfig.ts).</Sub>
+        )}
+        <Sub style={{ marginTop: 0 }}>The kids and points on this device come with you when you start a family.</Sub>
       </Card>
     );
+
+  const run = async (fn: () => Promise<void>, done?: string) => {
+    setBusy(true);
+    try { await fn(); if (done) toast(done); } catch { toast("That didn't work. Check your connection and try again."); }
+    setBusy(false);
+  };
+  const appLink = 'https://bazinmelesse.github.io/Family-Point-Bank/app/';
+  const invite = meta?.inviteCode || '…';
+  const board = meta?.boardKey ? `display.html?src=${boardUrl(meta.boardKey)}` : '';
 
   return (
     <Card>
       <View>
-        <H2>Sync between devices</H2>
-        <Sub>Off. Points are saved only on this device. Turn sync on so every parent's phone and the iPad show the same points, live. The setup steps are in the app's README.</Sub>
+        <H2>{meta?.name || 'Your family'}</H2>
+        <Sub>{STATE_TEXT[syncState]}</Sub>
       </View>
-      <Field label="Firebase database address">
-        <Input value={url} onChangeText={setUrl} placeholder="https://your-family-default-rtdb.firebaseio.com" autoCapitalize="none" autoCorrect={false} keyboardType="url" />
-      </Field>
       <Row style={{ alignItems: 'flex-end' }}>
-        <Btn label={busy ? 'Working…' : 'Start a new family'} variant="cash" disabled={busy || !url.trim()} onPress={() => go('create')} />
-        <Sub style={{ marginTop: 0, flexShrink: 1 }}>On the first device. Uploads this device's kids and points.</Sub>
+        <Field label="Family name" style={{ flexGrow: 1, flexBasis: 200 }}>
+          <Input value={name} onChangeText={setName} maxLength={40} />
+        </Field>
+        <Btn label="Save" disabled={!name.trim() || name.trim() === meta?.name} onPress={() => { renameFamily(name.trim()); toast('Saved'); }} />
       </Row>
-      <Field label="Or join with a family code">
-        <Input value={code} onChangeText={setCode} placeholder="abcd-efgh-jkmn-pqrs-tuvw-xyz2" autoCapitalize="none" autoCorrect={false} />
+
+      <Field label="Invite code">
+        <Text selectable style={{ color: t.ink, fontSize: 24, fontWeight: '900', letterSpacing: 2 }}>{invite}</Text>
+      </Field>
+      <Sub style={{ marginTop: -6 }}>
+        Give this to the other parent (or use it on the iPad). They open the app, create an account, tap Join, and enter the code.
+        Anyone with the code can join, so make a new one if it gets out.
+      </Sub>
+      <Row>
+        <Btn
+          label="Share invite"
+          variant="cash"
+          onPress={() => {
+            Share.share({ message: `Join our family on Family Point Bank.\n1. Open ${appLink}\n2. Create an account\n3. Tap Join and enter this code: ${invite}` }).catch(() => {});
+          }}
+        />
+        <Btn label="Make a new code" disabled={busy} onPress={() => run(newInvite, 'New invite code made. The old one no longer works.')} />
+      </Row>
+
+      <Field label={`Grown-ups in this family (${members.length})`}>
+        <View>
+          {[...members].sort((a, b) => a.joinedAt - b.joinedAt).map((m, i) => (
+            <ListItem key={m.uid} first={i === 0}>
+              <Text style={{ flex: 1, color: t.ink }} numberOfLines={1}>
+                {m.email}{m.uid === uid ? ' (you)' : ''}{m.uid === meta?.owner ? ' · started the family' : ''}
+              </Text>
+              {m.uid !== uid && <ConfirmBtn onConfirm={() => run(() => removeMember(m.uid), 'Removed')} accessibilityLabel={`Remove ${m.email}`} />}
+            </ListItem>
+          ))}
+        </View>
+      </Field>
+
+      <Field label="Old iPad board">
+        <Sub style={{ marginTop: 0 }}>
+          {board
+            ? 'On. Open this address on the old iPad to show live point totals (only names, colors and totals are shared, readable by anyone with the address):'
+            : "Turn this on to show live point totals on an older iPad that can't run the app."}
+        </Sub>
+        {!!board && <Text selectable style={{ color: t.muted, fontSize: 12 }}>{appLink.replace('/app/', '/')}{board}</Text>}
       </Field>
       <Row>
-        <Btn label={busy ? 'Working…' : 'Join'} disabled={busy || !url.trim() || !code.trim()} onPress={() => go('join')} />
-        <Sub style={{ marginTop: 0, flexShrink: 1 }}>Replaces this device's data with your family's.</Sub>
+        <Btn label={board ? 'Turn off old iPad board' : 'Turn on old iPad board'} disabled={busy} onPress={() => run(() => setBoard(!board))} />
       </Row>
-      {!!err && <Text style={{ color: t.lose, fontWeight: '700' }}>{err}</Text>}
+
+      <Field label="Account">
+        <Text style={{ color: t.ink }}>Signed in as {email}</Text>
+      </Field>
+      <Row>
+        <Btn label="Sign out" onPress={() => run(signOut)} />
+        <ConfirmBtn label="Leave this family" onConfirm={() => run(leaveFamily, 'You left the family')} />
+      </Row>
     </Card>
   );
 }
@@ -100,7 +128,7 @@ export function SettingsScreen() {
 
   return (
     <View style={{ gap: 16 }}>
-      <SyncCard />
+      <FamilyCard />
 
       <Card>
         <H2>Points and money</H2>
@@ -158,7 +186,7 @@ export function SettingsScreen() {
       <Card>
         <View>
           <H2>Copy or paste data</H2>
-          <Sub>A backup, or a way to move data without sync. With sync on, pasting replaces your family's data on every device.</Sub>
+          <Sub>A backup, or a way to bring in data from the old web app. In a family, pasting replaces the data on every device.</Sub>
         </View>
         <Row>
           <Btn

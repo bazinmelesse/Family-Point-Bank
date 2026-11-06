@@ -3,6 +3,7 @@ import React from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ToastProvider } from './src/components/ui';
+import { AuthScreen, FamilySetupScreen } from './src/screens/AccountScreens';
 import { CalendarScreen } from './src/screens/CalendarScreen';
 import { HistoryScreen } from './src/screens/HistoryScreen';
 import { KidBoard } from './src/screens/KidBoard';
@@ -25,9 +26,11 @@ const TABS = [
 function Main() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
-  const { ready, prefs, setPrefs, sync, syncState } = useStore();
+  const { mode, prefs, setPrefs, syncState, meta } = useStore();
 
-  if (!ready) return <View style={{ flex: 1, backgroundColor: t.bg }} />;
+  if (mode === 'loading') return <View style={{ flex: 1, backgroundColor: t.bg }} />;
+  if (mode === 'signedOut') return <AuthScreen />;
+  if (mode === 'noFamily') return <FamilySetupScreen />;
   if (prefs.kidMode) return <KidBoard onExit={() => setPrefs({ kidMode: false })} />;
 
   const tab = TABS.find((x) => x.id === prefs.tab) || TABS[0];
@@ -43,7 +46,7 @@ function Main() {
           <Pressable onPress={() => setPrefs({ tab: 'settings' })} accessibilityRole="button" style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
             <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: syncState === 'live' ? t.earn : syncState === 'error' ? t.lose : t.muted }} />
             <Text style={{ color: t.muted, fontSize: 12 }} numberOfLines={1}>
-              {!sync ? 'This device only' : { local: 'This device only', connecting: 'Connecting…', live: 'Synced', offline: 'Offline', error: 'Not saving online' }[syncState]}
+              {mode === 'local' ? 'This device only' : { connecting: 'Connecting…', live: meta?.name || 'Synced', offline: 'Offline', error: 'Not saving online' }[syncState]}
             </Text>
           </Pressable>
           <Pressable

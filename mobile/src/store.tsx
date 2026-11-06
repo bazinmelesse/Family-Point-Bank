@@ -1,18 +1,29 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  createUserWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, signOut as fbSignOut,
+} from 'firebase/auth';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import * as cloud from './cloud';
+import { FamilyLink, type FamilyMeta, type Member, type SyncState } from './cloud';
+import { fb } from './firebase';
+import { isConfigured } from './firebaseConfig';
 import { STARTER } from './starter';
-import { cleanCode, cleanUrl, newFamilyCode, Remote, type SyncConfig, type SyncState } from './sync';
 import type { Activity, BankData, CalEvent, Kid, LogEntry, Reward, Settings } from './types';
-import { rid } from './utils';
+import { balance, rid } from './utils';
 
-const DATA_KEY = 'fpb-data';
+const LOCAL_KEY = 'fpb-data'; // this-device-only data (and what a new family starts from)
 const PREFS_KEY = 'fpb-prefs';
-const SYNC_KEY = 'fpb-sync';
+const familyCacheKey = (fid: string) => `fpb-family-${fid}`;
 
 export interface Prefs {
   kidMode: boolean;
   tab: string;
+  /** Chose "use on this device only" instead of signing in. */
+  localOnly: boolean;
 }
+
+/** loading → (signedOut | local) or (noFamily → family) */
+export type Mode = 'loading' | 'signedOut' | 'local' | 'noFamily' | 'family';
 
 /** Fills in anything missing, so data saved by the web app (or an older version) still loads. */
 export function normalize(raw: Partial<BankData> | null | undefined): BankData {
@@ -27,13 +38,52 @@ export function normalize(raw: Partial<BankData> | null | undefined): BankData {
   };
 }
 
+/** Turns Firebase sign-in errors into plain sentences. */
+function authMessage(e: unknown) {
+  const code = (e as { code?: string })?.code || '';
+  const map: Record<string, string> = {
+    'auth/invalid-email': "That email address doesn't look right.",
+    'auth/missing-password': 'Enter a password.',
+    'auth/weak-password': 'Use a password with at least 6 characters.',
+    'auth/email-already-in-use': 'There is already an account with that email. Tap "I have an account" to sign in.',
+    'auth/invalid-credential': "That email and password don't match. Try again or reset your password.",
+    'auth/wrong-password': "That email and password don't match. Try again or reset your password.",
+    'auth/user-not-found': 'No account with that email yet. Tap "Create an account".',
+    'auth/too-many-requests': 'Too many tries. Wait a few minutes and try again.',
+    'auth/network-request-failed': "Couldn't connect. Check your internet connection.",
+    'auth/operation-not-allowed': 'Email sign-in is not turned on in Firebase yet (Authentication → Email/Password).',
+  };
+  return map[code] || (e instanceof Error ? e.message : 'Something went wrong. Try again.');
+}
+
 type Coll = 'kids' | 'activities' | 'rewards' | 'log' | 'events';
 
 interface Store {
-  ready: boolean;
+  mode: Mode;
   data: BankData;
   prefs: Prefs;
   setPrefs: (p: Partial<Prefs>) => void;
+  // account
+  configured: boolean;
+  email: string | null;
+  uid: string | null;
+  signUp: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  // family
+  familyId: string | null;
+  meta: FamilyMeta | null;
+  members: Member[];
+  syncState: SyncState;
+  createFamily: (name: string) => Promise<void>;
+  joinFamily: (code: string) => Promise<void>;
+  leaveFamily: () => Promise<void>;
+  newInvite: () => Promise<void>;
+  removeMember: (uid: string) => Promise<void>;
+  renameFamily: (name: string) => void;
+  setBoard: (on: boolean) => Promise<void>;
+  // data
   addKid: (k: Omit<Kid, 'id' | 'createdAt' | 'goalId'>) => void;
   updateKid: (id: string, patch: Partial<Kid>) => void;
   addActivity: (a: Omit<Activity, 'id'>) => void;
@@ -44,123 +94,194 @@ interface Store {
   remove: (c: Coll, id: string) => void;
   saveSettings: (patch: Partial<Settings>) => void;
   replaceAll: (d: BankData) => void;
-  sync: SyncConfig | null;
-  syncState: SyncState;
-  /** 'create' starts a new family from this device's data; 'join' uses the family already online. */
-  connectSync: (url: string, code: string, mode: 'create' | 'join') => Promise<void>;
-  disconnectSync: () => void;
 }
 
 const Ctx = createContext<Store | null>(null);
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
-  const [ready, setReady] = useState(false);
+  const configured = isConfigured();
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
+  const [prefs, setPrefsState] = useState<Prefs>({ kidMode: false, tab: 'kids', localOnly: false });
+  const [user, setUser] = useState<{ uid: string; email: string } | null | undefined>(configured ? undefined : null);
+  const [familyId, setFamilyId] = useState<string | null | undefined>(undefined);
+  const [meta, setMeta] = useState<FamilyMeta | null>(null);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [syncState, setSyncState] = useState<SyncState>('connecting');
   const [data, setData] = useState<BankData>(STARTER);
-  const [prefs, setPrefsState] = useState<Prefs>({ kidMode: false, tab: 'kids' });
-  const [sync, setSync] = useState<SyncConfig | null>(null);
-  const [syncState, setSyncState] = useState<SyncState>('local');
-  const loaded = useRef(false);
   const dataRef = useRef(data);
   dataRef.current = data;
-  const remote = useRef<Remote | null>(null);
+  const link = useRef<FamilyLink | null>(null);
+  // Where `data` is saved on this device; null while switching so nothing is written to the wrong place.
+  const cacheKey = useRef<string | null>(null);
 
-  const startRemote = useCallback((r: Remote) => {
-    remote.current?.close();
-    remote.current = r;
+  /* ---------- prefs ---------- */
+  useEffect(() => {
+    AsyncStorage.getItem(PREFS_KEY)
+      .then((p) => { if (p) setPrefsState((old) => ({ ...old, ...JSON.parse(p) })); })
+      .catch(() => {})
+      .finally(() => setPrefsLoaded(true));
+  }, []);
+  useEffect(() => {
+    if (prefsLoaded) AsyncStorage.setItem(PREFS_KEY, JSON.stringify(prefs)).catch(() => {});
+  }, [prefs, prefsLoaded]);
+  const setPrefs = useCallback((p: Partial<Prefs>) => setPrefsState((old) => ({ ...old, ...p })), []);
+
+  /* ---------- auth ---------- */
+  useEffect(() => {
+    if (!configured) return;
+    return onAuthStateChanged(fb().auth, (u) => {
+      setFamilyId(undefined);
+      setUser(u ? { uid: u.uid, email: u.email || '' } : null);
+    });
+  }, [configured]);
+
+  // Find the signed-in person's family.
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    cloud.myFamilyId(user.uid)
+      .then((fid) => { if (alive) setFamilyId(fid); })
+      .catch(() => { if (alive) setFamilyId(null); });
+    return () => { alive = false; };
+  }, [user]);
+
+  const mode: Mode =
+    !prefsLoaded || user === undefined ? 'loading'
+    : !user ? (prefs.localOnly || !configured ? 'local' : 'signedOut')
+    : familyId === undefined ? 'loading'
+    : familyId ? 'family' : 'noFamily';
+
+  /* ---------- load the right data for the mode ---------- */
+  const startLink = useCallback((fid: string) => {
+    link.current?.close();
+    const l = new FamilyLink(fid);
+    link.current = l;
     setSyncState('connecting');
-    r.listen(
-      (d) => { if (d && remote.current === r) setData(normalize(d)); },
-      (st) => { if (remote.current === r) setSyncState(st); },
+    l.listen(
+      (d) => { if (link.current === l && d) setData(normalize(d)); },
+      (m, mem) => { if (link.current === l) { setMeta(m); setMembers(mem); } },
+      (st) => { if (link.current === l) setSyncState(st); },
+      () => {
+        if (link.current !== l) return;
+        l.close();
+        link.current = null;
+        AsyncStorage.removeItem(familyCacheKey(fid)).catch(() => {});
+        const u = fb().auth.currentUser;
+        if (u) cloud.clearMyFamily(u.uid).catch(() => {});
+        setFamilyId(null);
+      },
     );
   }, []);
 
   useEffect(() => {
-    (async () => {
-      let cfg: SyncConfig | null = null;
-      try {
-        const [d, p, sc] = await Promise.all([AsyncStorage.getItem(DATA_KEY), AsyncStorage.getItem(PREFS_KEY), AsyncStorage.getItem(SYNC_KEY)]);
-        // The saved copy shows right away; with sync on, the online copy replaces it once it arrives.
-        if (d) setData(normalize(JSON.parse(d)));
-        if (p) setPrefsState((old) => ({ ...old, ...JSON.parse(p) }));
-        if (sc) cfg = JSON.parse(sc);
-      } catch {
-        // Start fresh from the starter lists if saved data can't be read.
-      }
-      loaded.current = true;
-      setReady(true);
-      if (cfg?.url && cfg.code) {
-        setSync(cfg);
-        try { startRemote(new Remote(cfg)); } catch { setSyncState('error'); }
-      }
-    })();
-    return () => remote.current?.close();
-  }, [startRemote]);
+    cacheKey.current = null;
+    let alive = true;
+    const key = mode === 'family' && familyId ? familyCacheKey(familyId) : mode === 'local' || mode === 'noFamily' ? LOCAL_KEY : null;
+    if (mode !== 'family') { link.current?.close(); link.current = null; setMeta(null); setMembers([]); }
+    if (!key) return;
+    AsyncStorage.getItem(key)
+      .then((saved) => {
+        if (!alive) return;
+        setData(saved ? normalize(JSON.parse(saved)) : STARTER);
+        cacheKey.current = key;
+        if (mode === 'family' && familyId) startLink(familyId);
+      })
+      .catch(() => { if (alive) { cacheKey.current = key; if (mode === 'family' && familyId) startLink(familyId); } });
+    return () => { alive = false; };
+  }, [mode, familyId, startLink]);
 
+  useEffect(() => () => link.current?.close(), []);
+
+  // Save a copy on the device so the app opens instantly and works offline.
   useEffect(() => {
-    if (loaded.current) AsyncStorage.setItem(DATA_KEY, JSON.stringify(data)).catch(() => {});
+    if (cacheKey.current) AsyncStorage.setItem(cacheKey.current, JSON.stringify(data)).catch(() => {});
   }, [data]);
+
+  // Keep the public old-iPad board's totals current.
+  const lastBoard = useRef('');
   useEffect(() => {
-    if (loaded.current) AsyncStorage.setItem(PREFS_KEY, JSON.stringify(prefs)).catch(() => {});
-  }, [prefs]);
+    if (mode !== 'family' || !familyId || !meta?.boardKey) return;
+    const kids = data.kids.map((k) => ({ id: k.id, name: k.name, color: k.color, createdAt: k.createdAt, points: balance(data.log, k.id) }));
+    const json = meta.boardKey + JSON.stringify(kids);
+    if (json === lastBoard.current) return;
+    const t = setTimeout(() => {
+      lastBoard.current = json;
+      cloud.writeBoard(familyId, meta.boardKey!, kids).catch(() => {});
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [mode, familyId, meta?.boardKey, data]);
 
-  const setPrefs = useCallback((p: Partial<Prefs>) => setPrefsState((old) => ({ ...old, ...p })), []);
-
-  const connectSync = useCallback(async (rawUrl: string, rawCode: string, mode: 'create' | 'join') => {
-    const url = cleanUrl(rawUrl);
-    if (!url) throw new Error("That doesn't look like a Firebase database address. It ends in firebaseio.com or firebasedatabase.app.");
-    const code = mode === 'create' ? newFamilyCode() : cleanCode(rawCode);
-    if (code.length < 20) throw new Error('Family codes are 29 characters, like abcd-efgh-jkmn-pqrs-tuvw-xyz2.');
-    const cfg = { url, code };
-    const r = new Remote(cfg);
-    let online: Partial<BankData> | null;
-    try {
-      online = await Promise.race([
-        r.readOnce(),
-        new Promise<never>((_, rej) => setTimeout(() => rej(new Error('timeout')), 15000)),
-      ]);
-    } catch (e) {
-      r.close();
-      throw new Error(
-        String(e).includes('timeout')
-          ? "Couldn't reach the database. Check the address and your internet connection."
-          : 'The database said no. Check that the rules from the setup steps are published.',
-      );
-    }
-    if (mode === 'join' && !online) {
-      r.close();
-      throw new Error('No family with that code yet. Check the code, or tap Start a new family on the first device.');
-    }
-    if (mode === 'create') await r.setAll(dataRef.current);
-    else setData(normalize(online));
-    await AsyncStorage.setItem(SYNC_KEY, JSON.stringify(cfg));
-    setSync(cfg);
-    startRemote(r);
-  }, [startRemote]);
-
-  const disconnectSync = useCallback(() => {
-    remote.current?.close();
-    remote.current = null;
-    setSync(null);
-    setSyncState('local');
-    AsyncStorage.removeItem(SYNC_KEY).catch(() => {});
+  /* ---------- account and family actions ---------- */
+  const signUp = useCallback(async (email: string, password: string) => {
+    try { await createUserWithEmailAndPassword(fb().auth, email.trim(), password); } catch (e) { throw new Error(authMessage(e)); }
   }, []);
+  const signIn = useCallback(async (email: string, password: string) => {
+    try { await signInWithEmailAndPassword(fb().auth, email.trim(), password); } catch (e) { throw new Error(authMessage(e)); }
+  }, []);
+  const resetPassword = useCallback(async (email: string) => {
+    try { await sendPasswordResetEmail(fb().auth, email.trim()); } catch (e) { throw new Error(authMessage(e)); }
+  }, []);
+  const signOut = useCallback(async () => {
+    link.current?.close();
+    link.current = null;
+    setPrefs({ localOnly: false, kidMode: false });
+    if (configured) await fbSignOut(fb().auth);
+    else setUser(null);
+  }, [configured, setPrefs]);
 
+  const createFamily = useCallback(async (name: string) => {
+    if (!user) return;
+    // A new family starts with whatever this device already has (kids added while trying it out), or the starter lists.
+    const fid = await cloud.createFamily(user.uid, user.email, name.trim() || 'Our family', dataRef.current);
+    setFamilyId(fid);
+  }, [user]);
+  const joinFamily = useCallback(async (code: string) => {
+    if (!user) return;
+    const fid = await cloud.joinFamily(user.uid, user.email, code);
+    setFamilyId(fid);
+  }, [user]);
+  const leaveFamily = useCallback(async () => {
+    if (!user || !familyId) return;
+    link.current?.close();
+    link.current = null;
+    await cloud.leaveFamily(familyId, user.uid);
+    AsyncStorage.removeItem(familyCacheKey(familyId)).catch(() => {});
+    setFamilyId(null);
+  }, [user, familyId]);
+  const newInvite = useCallback(async () => {
+    if (familyId && meta) await cloud.rotateInvite(familyId, meta.inviteCode);
+  }, [familyId, meta]);
+  const removeMember = useCallback(async (uid: string) => {
+    if (familyId) await cloud.removeMember(familyId, uid);
+  }, [familyId]);
+  const setBoard = useCallback(async (on: boolean) => {
+    if (!familyId) return;
+    lastBoard.current = '';
+    if (on) await cloud.enableBoard(familyId);
+    else if (meta?.boardKey) await cloud.disableBoard(familyId, meta.boardKey);
+  }, [familyId, meta?.boardKey]);
+
+  /* ---------- data actions: apply here right away, and write online in family mode ---------- */
   const store = useMemo<Store>(() => {
-    // Every change applies here right away and, with sync on, is also written online.
-    const send = (fn: (r: Remote) => Promise<unknown>) => {
-      const r = remote.current;
-      if (r) fn(r).catch(() => setSyncState('error'));
+    const send = (fn: (l: FamilyLink) => Promise<unknown>) => {
+      const l = link.current;
+      if (l) fn(l).catch(() => setSyncState('error'));
     };
     const push = <C extends Coll>(c: C, item: BankData[C][number]) => {
       setData((d) => ({ ...d, [c]: [...d[c], item] }));
-      send((r) => r.put(c, item));
+      send((l) => l.put(c, item));
     };
     const patch = <C extends Coll>(c: C, id: string, p: Partial<BankData[C][number]>) => {
       setData((d) => ({ ...d, [c]: (d[c] as BankData[C][number][]).map((x) => (x.id === id ? { ...x, ...p } : x)) }));
-      send((r) => r.patch(c, id, p as Record<string, unknown>));
+      send((l) => l.patch(c, id, p as Record<string, unknown>));
     };
     return {
-      ready, data, prefs, setPrefs, sync, syncState, connectSync, disconnectSync,
+      mode, data, prefs, setPrefs,
+      configured, email: user?.email ?? null, uid: user?.uid ?? null,
+      signUp, signIn, resetPassword, signOut,
+      familyId: familyId ?? null, meta, members, syncState,
+      createFamily, joinFamily, leaveFamily, newInvite, removeMember, setBoard,
+      renameFamily: (name) => send((l) => l.rename(name)),
       addKid: (k) => push('kids', { ...k, id: rid(), createdAt: Date.now(), goalId: null }),
       updateKid: (id, p) => patch('kids', id, p),
       addActivity: (a) => push('activities', { ...a, id: rid() }),
@@ -171,10 +292,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       remove: (c, id) => {
         if (c === 'kids')
           for (const e of dataRef.current.events.filter((x) => x.kidIds.includes(id))) {
-            if (e.kidIds.length === 1) send((r) => r.drop('events', e.id));
-            else send((r) => r.patch('events', e.id, { kidIds: e.kidIds.filter((k) => k !== id) }));
+            if (e.kidIds.length === 1) send((l) => l.drop('events', e.id));
+            else send((l) => l.patch('events', e.id, { kidIds: e.kidIds.filter((k) => k !== id) }));
           }
-        send((r) => r.drop(c, id));
+        send((l) => l.drop(c, id));
         setData((d) => {
           const next = { ...d, [c]: (d[c] as { id: string }[]).filter((x) => x.id !== id) } as BankData;
           // Removing a kid takes them off calendar activities, and drops activities that were only theirs.
@@ -187,15 +308,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       },
       saveSettings: (p) => {
         setData((d) => ({ ...d, settings: { ...d.settings, ...p } }));
-        send((r) => r.settings(p as Record<string, unknown>));
+        send((l) => l.settings(p as Record<string, unknown>));
       },
       replaceAll: (d) => {
         const n = normalize(d);
         setData(n);
-        send((r) => r.setAll(n));
+        send((l) => l.setAll(n));
       },
     };
-  }, [ready, data, prefs, setPrefs, sync, syncState, connectSync, disconnectSync]);
+  }, [mode, data, prefs, setPrefs, configured, user, signUp, signIn, resetPassword, signOut, familyId, meta, members, syncState,
+      createFamily, joinFamily, leaveFamily, newInvite, removeMember, setBoard]);
 
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;
 }

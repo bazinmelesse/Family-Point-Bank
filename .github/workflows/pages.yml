@@ -41,7 +41,7 @@ jobs:
         run: npx expo export --platform web --output-dir ../_site/app
       - name: Add the original web app and iPad board
         run: |
-          cp index.html display.html icon-180.png _site/
+          cp index.html display.html icon-180.png privacy.html support.html delete-account.html _site/
           cp -r data _site/
           touch _site/.nojekyll
       - uses: actions/upload-pages-artifact@v3

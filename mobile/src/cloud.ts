@@ -125,6 +125,28 @@ export async function leaveFamily(familyId: string, uid: string) {
   await remove(r(`families/${familyId}/members/${uid}`));
 }
 
+/**
+ * Removes this person's data before their account is deleted.
+ * Last grown-up in the family: the whole family goes (kids, points, calendar, invite code and iPad board).
+ * Otherwise: they leave, the family stays for everyone else, and someone else becomes its owner if needed.
+ */
+export async function deleteMyData(uid: string, familyId: string | null) {
+  if (familyId) {
+    const snap = await get(r(`families/${familyId}`)).catch(() => null);
+    const fam = snap?.exists() ? (snap.val() as { meta?: FamilyMeta; members?: Record<string, unknown> }) : null;
+    const others = Object.keys(fam?.members || {}).filter((m) => m !== uid);
+    if (fam && others.length === 0) {
+      if (fam.meta?.inviteCode) await remove(r(`invites/${fam.meta.inviteCode}`)).catch(() => {});
+      if (fam.meta?.boardKey) await remove(r(`boards/${fam.meta.boardKey}`)).catch(() => {});
+      await remove(r(`families/${familyId}`));
+    } else if (fam) {
+      if (fam.meta?.owner === uid) await update(r(`families/${familyId}/meta`), { owner: others[0] });
+      await remove(r(`families/${familyId}/members/${uid}`));
+    }
+  }
+  await set(r(`users/${uid}`), null);
+}
+
 /** Turns on the public points board for the old iPad and returns its key. */
 export async function enableBoard(familyId: string) {
   const key = randomCode(16).toLowerCase();

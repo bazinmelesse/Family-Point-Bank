@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Share, Text, View } from 'react-native';
+import { Pressable, Share, Text, View } from 'react-native';
 import { Btn, Card, ConfirmBtn, Field, H2, Input, ListItem, Pill, Row, Sub, useToast } from '../components/ui';
 import { normalize, useStore } from '../store';
 import { boardUrl } from '../firebase';
+import { LINKS, openLink } from '../links';
 import { useTheme } from '../theme';
 import type { BankData, LockType } from '../types';
 import { LOCKS, money, rate } from '../utils';
@@ -45,7 +46,7 @@ function FamilyCard() {
     try { await fn(); if (done) toast(done); } catch { toast("That didn't work. Check your connection and try again."); }
     setBusy(false);
   };
-  const appLink = 'https://bazinmelesse.github.io/Family-Point-Bank/app/';
+  const appLink = LINKS.webApp;
   const invite = meta?.inviteCode || '…';
   const board = meta?.boardKey ? `display.html?src=${boardUrl(meta.boardKey)}` : '';
 
@@ -74,7 +75,7 @@ function FamilyCard() {
           label="Share invite"
           variant="cash"
           onPress={() => {
-            Share.share({ message: `Join our family on Family Point Bank.\n1. Open ${appLink}\n2. Create an account\n3. Tap Join and enter this code: ${invite}` }).catch(() => {});
+            Share.share({ message: `Join our family on Family Point Bank.\n1. Get the Family Point Bank app from the App Store or Google Play (or open ${appLink})\n2. Create an account\n3. Tap Join and enter this code: ${invite}` }).catch(() => {});
           }}
         />
         <Btn label="Make a new code" disabled={busy} onPress={() => run(newInvite, 'New invite code made. The old one no longer works.')} />
@@ -112,7 +113,56 @@ function FamilyCard() {
         <Btn label="Sign out" onPress={() => run(signOut)} />
         <ConfirmBtn label="Leave this family" onConfirm={() => run(leaveFamily, 'You left the family')} />
       </Row>
+      <DeleteAccount />
     </Card>
+  );
+}
+
+/**
+ * Deletes the account and its online data. App Store and Google Play both require this inside the app.
+ * Used here in Settings and on the start-or-join-a-family screen.
+ */
+export function DeleteAccount() {
+  const t = useTheme();
+  const { members, uid, familyId, deleteAccount } = useStore();
+  const [open, setOpen] = useState(false);
+  const [pw, setPw] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const alone = !members.some((m) => m.uid !== uid);
+  if (!open)
+    return (
+      <Pressable onPress={() => setOpen(true)} accessibilityRole="button" style={{ alignSelf: 'flex-start', paddingVertical: 6 }}>
+        <Text style={{ color: t.lose, fontWeight: '700' }}>Delete my account</Text>
+      </Pressable>
+    );
+  return (
+    <View style={{ gap: 10, borderTopWidth: 1, borderTopColor: t.line, paddingTop: 12 }}>
+      <H2 style={{ fontSize: 18 }}>Delete my account</H2>
+      <Sub style={{ marginTop: 0 }}>
+        {!familyId
+          ? 'This permanently deletes your account. It cannot be undone.'
+          : alone
+          ? 'This permanently deletes your account and your family: every kid, point, reward and calendar item, the invite code and the iPad board. It cannot be undone.'
+          : 'This permanently deletes your account and takes you out of the family. The family, its kids and points stay for the other grown-ups.'}
+      </Sub>
+      <Field label="Type your password to confirm">
+        <Input value={pw} onChangeText={setPw} secureTextEntry autoCapitalize="none" autoComplete="current-password" textContentType="password" />
+      </Field>
+      {!!err && <Text style={{ color: t.lose, fontWeight: '700' }}>{err}</Text>}
+      <Row>
+        <Btn
+          label={busy ? 'Deleting…' : 'Delete forever'}
+          variant="lose"
+          disabled={busy || !pw}
+          onPress={async () => {
+            setBusy(true); setErr('');
+            try { await deleteAccount(pw); } catch (e) { setErr(e instanceof Error ? e.message : "That didn't work. Try again."); setBusy(false); }
+          }}
+        />
+        <Btn label="Cancel" disabled={busy} onPress={() => { setOpen(false); setPw(''); setErr(''); }} />
+      </Row>
+    </View>
   );
 }
 
@@ -215,6 +265,14 @@ export function SettingsScreen() {
             }}
           />
           <Sub style={{ marginTop: 0 }}>This replaces everything.</Sub>
+        </Row>
+      </Card>
+
+      <Card>
+        <H2>Help and privacy</H2>
+        <Row>
+          <Btn label="Privacy policy" onPress={() => openLink(LINKS.privacy)} />
+          <Btn label="Help and contact" onPress={() => openLink(LINKS.support)} />
         </Row>
       </Card>
     </View>

@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  createUserWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, signOut as fbSignOut,
+  createUserWithEmailAndPassword, deleteUser, EmailAuthProvider, onAuthStateChanged, reauthenticateWithCredential,
+  sendPasswordResetEmail, signInWithEmailAndPassword, signOut as fbSignOut,
 } from 'firebase/auth';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import * as cloud from './cloud';
@@ -50,6 +51,7 @@ function authMessage(e: unknown) {
     'auth/wrong-password': "That email and password don't match. Try again or reset your password.",
     'auth/user-not-found': 'No account with that email yet. Tap "Create an account".',
     'auth/too-many-requests': 'Too many tries. Wait a few minutes and try again.',
+    'auth/requires-recent-login': 'For your safety, sign out, sign back in, and try again.',
     'auth/network-request-failed': "Couldn't connect. Check your internet connection.",
     'auth/operation-not-allowed': 'Email sign-in is not turned on in Firebase yet (Authentication → Email/Password).',
   };
@@ -71,6 +73,8 @@ interface Store {
   signIn: (email: string, password: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Deletes the account and its online data, after checking the password again. */
+  deleteAccount: (password: string) => Promise<void>;
   // family
   familyId: string | null;
   meta: FamilyMeta | null;
@@ -229,6 +233,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     else setUser(null);
   }, [configured, setPrefs]);
 
+  const deleteAccount = useCallback(async (password: string) => {
+    const u = fb().auth.currentUser;
+    if (!u || !u.email) return;
+    // Firebase only deletes an account that signed in recently, so confirm the password first.
+    try { await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, password)); } catch (e) { throw new Error(authMessage(e)); }
+    const fid = familyId ?? null;
+    link.current?.close();
+    link.current = null;
+    await cloud.deleteMyData(u.uid, fid);
+    if (fid) AsyncStorage.removeItem(familyCacheKey(fid)).catch(() => {});
+    try { await deleteUser(u); } catch (e) { throw new Error(authMessage(e)); }
+    setPrefs({ localOnly: false, kidMode: false });
+  }, [familyId, setPrefs]);
+
   const createFamily = useCallback(async (name: string) => {
     if (!user) return;
     // A new family starts with whatever this device already has (kids added while trying it out), or the starter lists.
@@ -278,7 +296,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return {
       mode, data, prefs, setPrefs,
       configured, email: user?.email ?? null, uid: user?.uid ?? null,
-      signUp, signIn, resetPassword, signOut,
+      signUp, signIn, resetPassword, signOut, deleteAccount,
       familyId: familyId ?? null, meta, members, syncState,
       createFamily, joinFamily, leaveFamily, newInvite, removeMember, setBoard,
       renameFamily: (name) => send((l) => l.rename(name)),
@@ -316,7 +334,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         send((l) => l.setAll(n));
       },
     };
-  }, [mode, data, prefs, setPrefs, configured, user, signUp, signIn, resetPassword, signOut, familyId, meta, members, syncState,
+  }, [mode, data, prefs, setPrefs, configured, user, signUp, signIn, resetPassword, signOut, deleteAccount, familyId, meta, members, syncState,
       createFamily, joinFamily, leaveFamily, newInvite, removeMember, setBoard]);
 
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;

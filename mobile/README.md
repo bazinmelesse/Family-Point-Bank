@@ -35,7 +35,22 @@ npx expo start
 
 Scan the QR code with the camera (iPhone/iPad) or Expo Go (Android). Press `w` to open it in a browser instead. If the phone can't reach the computer, use `npx expo start --tunnel`.
 
-A native App Store-style build is also possible with EAS (`npx eas-cli@latest build --platform ios`). Installing it on iPhones and iPads needs an Apple Developer account.
+## Publishing to the App Store and Google Play
+
+The app is built, signed and uploaded in the cloud with EAS, so no Mac or Xcode is needed. Settings are in `app.json` and `eas.json`; store text, form answers, screenshots and graphics are in [`../store/`](../store/listing.md). The privacy policy, help and account deletion pages (`privacy.html`, `support.html`, `delete-account.html` at the top of the repo) are published by the GitHub Pages workflow, and the app links to them from Settings and the sign-in screen.
+
+```bash
+cd mobile
+npx eas-cli@latest login            # your free Expo account
+npx eas-cli@latest init             # once: links the app to an Expo project (adds extra.eas.projectId to app.json; commit it)
+npx eas-cli@latest build --platform all --profile production
+npx eas-cli@latest submit --platform ios --latest      # uploads to App Store Connect / TestFlight
+npx eas-cli@latest submit --platform android --latest  # uploads to Google Play (internal testing track, as a draft)
+```
+
+The first iOS build asks you to sign in with your Apple Developer account and creates the certificates for you. Google Play needs the very first upload done by hand in the Play Console (download the `.aab` from the EAS build page); after that `eas submit` works with a Google service account key. Build numbers go up on their own (`autoIncrement` in `eas.json`); change `version` in `app.json` for each new release.
+
+Both stores require that people can delete their account inside the app: **Settings → Delete my account** (also on the start-or-join screen). It asks for the password again, deletes the whole family if they are the last grown-up in it (otherwise just removes them), and then deletes the sign-in.
 
 ## Accounts and families
 

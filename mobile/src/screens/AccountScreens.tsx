@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Btn, Card, Field, H2, Input, Sub } from '../components/ui';
+import { LINKS, openLink } from '../links';
 import { useStore } from '../store';
+import { DeleteAccount } from './SettingsScreen';
 import { useTheme } from '../theme';
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -115,6 +117,7 @@ export function AuthScreen() {
           Or try it without an account. Everything stays on this device.
         </Text>
       </Pressable>
+      <LinkText label="Privacy policy" onPress={() => openLink(LINKS.privacy)} />
     </Shell>
   );
 }
@@ -164,6 +167,9 @@ export function FamilySetupScreen() {
       <Pressable onPress={signOut} accessibilityRole="button" style={{ alignSelf: 'center', padding: 8 }}>
         <Text style={{ color: t.muted, fontWeight: '700' }}>Sign out</Text>
       </Pressable>
+      <View style={{ alignItems: 'center' }}>
+        <DeleteAccount />
+      </View>
     </Shell>
   );
 }
